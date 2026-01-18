@@ -1,0 +1,7 @@
+{
+  "name": "微光 Glimmer - 溫暖守護，隨時相伴",
+  "description": "Glimmer 是一個個人安全守護應用程式，提供自動安全檢查、緊急聯絡人通知、SOS 求助功能，以及專為守護者設計的即時位置監控，讓溫暖的關懷時刻與您相伴。",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

@@ -1,0 +1,86 @@
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>微光 Glimmer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#d1af47",
+                        "primary-dark": "#b89a3e",
+                        "background-light": "#fdf9f6",
+                        "background-dark": "#1d1d20",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#2a2a2d",
+                        "text-main": "#191710",
+                        "text-muted": "#8e8157",
+                        "secondary-green": "#A4D9B6",
+                        "alert-red": "#D62828",
+                    },
+                    fontFamily: {
+                        "display": ["Noto Serif TC", "serif"],
+                        "body": ["Noto Sans TC", "Plus Jakarta Sans", "sans-serif"],
+                    },
+                    backgroundImage: {
+                        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+                    }
+                },
+            },
+        }
+    </script>
+    <style>
+        @keyframes float {
+            0% { transform: translateY(0px) rotate(45deg); }
+            50% { transform: translateY(-10px) rotate(45deg); }
+            100% { transform: translateY(0px) rotate(45deg); }
+        }
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+        .bg-noise {
+            background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuDs6Wp2zIakwIi16jQEVT0BB8uG83fqzBTs_pSKNLnavqg9DxtoUIVzeKk1x3tmb1cNmTP4VO439aJpyDNjYAaWwmEZ1ILFo17cYRCiJsoaP5JcRfTDEVnRpXG4A-fRb3eduSS6V46b87xOgmLdZQghu9F9JqaSVp0GbmuLihEITbGamzMrVcxXkCq9y9MDxF_YdhsSqIHC8zEJdDAvv3ymSF0rQ1H5mlC0p8Bu7jmfGUefrS-5txTl_qDa4tu_xNtYRcI_rP1dogs);
+            opacity: 0.1;
+            mix-blend-mode: multiply;
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .dark .bg-noise {
+            mix-blend-mode: overlay;
+            opacity: 0.05;
+        }
+        .timer-ring {
+            background: conic-gradient(from 0deg, #d1af47 75%, #e5e7eb 75%);
+        }
+        .dark .timer-ring {
+            background: conic-gradient(from 0deg, #d1af47 75%, #374151 75%);
+        }
+        body {
+            overscroll-behavior-y: none;
+        }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.12.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+  }
+}
+</script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-body text-text-main">
+    <div id="root"></div>
+</body>
+</html>
