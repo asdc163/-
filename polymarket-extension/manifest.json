@@ -6,6 +6,8 @@
   "permissions": ["storage", "activeTab"],
   "host_permissions": [
     "https://gamma-api.polymarket.com/*",
+    "https://clob.polymarket.com/*",
+    "https://data-api.polymarket.com/*",
     "https://twitter.com/*",
     "https://x.com/*",
     "https://www.youtube.com/*"
