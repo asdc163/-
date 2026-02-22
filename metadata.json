@@ -1,7 +1,5 @@
 {
-  "name": "微光 Glimmer - 溫暖守護，隨時相伴",
-  "description": "Glimmer 是一個個人安全守護應用程式，提供自動安全檢查、緊急聯絡人通知、SOS 求助功能，以及專為守護者設計的即時位置監控，讓溫暖的關懷時刻與您相伴。",
-  "requestFramePermissions": [
-    "geolocation"
-  ]
+  "name": "SEEDANCE AGENT — 抖音 AI 自動化内容代理",
+  "description": "一條龍 AI 內容代理：自動掃描抖音熱門趨勢 → 調用 Seedance 2.0 生成影片 → SEO 優化標籤 → 自動發布 → 流量回饋優化，全流程無人值守。",
+  "requestFramePermissions": []
 }

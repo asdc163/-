@@ -1,99 +1,222 @@
 
-import React from 'react';
+// TrendingView — repurposed from RoleSelectionView
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useApp } from '../App';
+import { TrendingTopic, TopicCategory, RegionTarget, TrendDirection } from '../types';
+import { BottomNav } from './DashboardView';
 
-interface RoleSelectionViewProps {
-  onSelectRole: (role: 'protected' | 'protector') => void;
-}
+const categoryLabel: Record<TopicCategory, string> = {
+  entertainment: '娛樂', tech: '科技', food: '美食',
+  fashion: '時尚', fitness: '健身', travel: '旅遊',
+  news: '新聞', gaming: '遊戲',
+};
 
-const RoleSelectionView: React.FC<RoleSelectionViewProps> = ({ onSelectRole }) => {
-  const [selectedRole, setSelectedRole] = React.useState<'protected' | 'protector' | null>(null);
-  const navigate = useNavigate();
+const trendIcon: Record<TrendDirection, string> = {
+  rising: '↑', stable: '→', falling: '↓',
+};
+const trendColor: Record<TrendDirection, string> = {
+  rising: '#00D85B', stable: '#888', falling: '#FF4444',
+};
 
+const regionColors: Record<RegionTarget, string> = {
+  CN: '#FE2C55', Global: '#25F4EE', TW: '#8B5CF6',
+};
+
+const ALL_CATS: (TopicCategory | 'all')[] = ['all', 'entertainment', 'tech', 'food', 'fashion', 'fitness', 'travel', 'gaming'];
+
+const HeatBar: React.FC<{ score: number }> = ({ score }) => (
+  <div className="flex items-center gap-1.5">
+    <div className="flex-1 h-1 bg-tt-border rounded-full overflow-hidden">
+      <div
+        className="h-full rounded-full"
+        style={{
+          width: `${score}%`,
+          background: score >= 90 ? 'linear-gradient(90deg,#FF7A00,#FE2C55)' :
+                     score >= 75 ? 'linear-gradient(90deg,#FFD60A,#FF7A00)' :
+                     'linear-gradient(90deg,#555,#888)',
+        }}
+      />
+    </div>
+    <span className="text-[10px] font-bold font-mono" style={{
+      color: score >= 90 ? '#FE2C55' : score >= 75 ? '#FFD60A' : '#888'
+    }}>{score}</span>
+  </div>
+);
+
+const TopicCard: React.FC<{ topic: TrendingTopic }> = ({ topic }) => {
+  const [expanded, setExpanded] = useState(false);
   return (
-    <div className="relative flex min-h-screen w-full flex-col font-display overflow-x-hidden p-6">
-      <header className="flex flex-col items-center pt-12 pb-6 text-center z-10">
-        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 dark:bg-primary/20 text-primary">
-          <span className="material-symbols-outlined text-4xl">wb_sunny</span>
-        </div>
-        <h1 className="text-stone-900 dark:text-stone-50 text-[32px] font-bold leading-tight tracking-tight mb-3">
-          請選擇您的角色
-        </h1>
-        <p className="text-stone-500 dark:text-stone-400 font-body text-base font-normal leading-relaxed max-w-xs mx-auto">
-          歡迎使用微光 Glimmer。請選擇您要使用的模式以開始。
-        </p>
-      </header>
-
-      <main className="flex-1 flex flex-col items-stretch gap-4 pb-24 max-w-md mx-auto w-full">
-        <div 
-          onClick={() => setSelectedRole('protected')}
-          className={`relative cursor-pointer group overflow-hidden rounded-xl bg-surface-light dark:bg-surface-dark border-2 transition-all duration-300 p-4 flex flex-col gap-4 ${
-            selectedRole === 'protected' ? 'border-primary ring-2 ring-primary/20' : 'border-transparent shadow-sm'
-          }`}
+    <div
+      className="bg-tt-surface border border-tt-border rounded-xl p-4 transition-all duration-200 cursor-pointer active:scale-[0.99]"
+      style={{
+        borderColor: topic.heatScore >= 90 ? 'rgba(254,44,85,0.3)' : '#2a2a2a',
+        boxShadow: topic.heatScore >= 90 ? '0 0 12px rgba(254,44,85,0.1)' : 'none',
+      }}
+      onClick={() => setExpanded(!expanded)}
+    >
+      <div className="flex items-start gap-3">
+        {/* heat rank indicator */}
+        <div
+          className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center text-lg font-black"
+          style={{
+            background: topic.heatScore >= 90
+              ? 'linear-gradient(135deg,#FF7A00,#FE2C55)'
+              : topic.heatScore >= 80
+              ? 'rgba(255,122,0,0.15)'
+              : '#1e1e1e',
+            color: topic.heatScore >= 80 ? '#FF7A00' : '#555',
+          }}
         >
-          <div className="relative w-full h-32 rounded-lg bg-stone-100 dark:bg-black/20 overflow-hidden">
-            <div className="absolute inset-0 bg-cover bg-center opacity-90 group-hover:scale-105 transition-transform duration-700" style={{ backgroundImage: "url('https://picsum.photos/seed/safety/600/400')" }}></div>
-            <div className="absolute inset-0 bg-gradient-to-t from-surface-light/80 to-transparent dark:from-surface-dark/80"></div>
-            <div className="absolute top-3 left-3 bg-surface-light/90 dark:bg-surface-dark/90 backdrop-blur-sm p-2 rounded-lg shadow-sm text-primary">
-              <span className="material-symbols-outlined text-2xl">shield_person</span>
-            </div>
-            {selectedRole === 'protected' && (
-              <div className="absolute top-3 right-3 bg-primary text-stone-900 rounded-full p-1 animate-in zoom-in duration-300">
-                <span className="material-symbols-outlined text-lg font-bold">check</span>
-              </div>
-            )}
+          {topic.heatScore >= 90 ? '🔥' : topic.heatScore >= 80 ? '⚡' : '○'}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-bold text-white truncate">{topic.tag}</span>
+            <span
+              className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+              style={{
+                background: `${regionColors[topic.region]}20`,
+                color: regionColors[topic.region],
+              }}
+            >
+              {topic.region}
+            </span>
+            <span
+              className="text-[10px] font-bold"
+              style={{ color: trendColor[topic.trend] }}
+            >
+              {trendIcon[topic.trend]} {topic.trend === 'rising' ? '上升' : topic.trend === 'stable' ? '穩定' : '下降'}
+            </span>
           </div>
-          <div className="flex flex-col gap-1">
-            <h2 className="text-stone-900 dark:text-stone-50 text-xl font-bold leading-tight">我需要被守護</h2>
-            <p className="text-stone-500 dark:text-stone-400 font-body text-sm font-normal leading-relaxed">
-              我想讓信任的聯絡人知道我的安全狀態，並在需要協助時發送警報。
-            </p>
+
+          <div className="text-xs text-tt-muted mt-0.5">{topic.title}</div>
+
+          <div className="mt-2">
+            <HeatBar score={topic.heatScore} />
+          </div>
+
+          <div className="flex items-center gap-3 mt-2 text-[10px] text-tt-dim font-mono">
+            <span>👁 {topic.viewCount}</span>
+            <span>📝 {topic.postCount}</span>
+            <span className="text-tt-border2">|</span>
+            <span
+              className="px-1.5 py-0.5 rounded text-[9px]"
+              style={{ background: '#1e1e1e', color: '#888' }}
+            >
+              {categoryLabel[topic.category]}
+            </span>
           </div>
         </div>
 
-        <div 
-          onClick={() => setSelectedRole('protector')}
-          className={`relative cursor-pointer group overflow-hidden rounded-xl bg-surface-light dark:bg-surface-dark border-2 transition-all duration-300 p-4 flex flex-col gap-4 ${
-            selectedRole === 'protector' ? 'border-primary ring-2 ring-primary/20' : 'border-transparent shadow-sm'
-          }`}
-        >
-          <div className="relative w-full h-32 rounded-lg bg-stone-100 dark:bg-black/20 overflow-hidden">
-            <div className="absolute inset-0 bg-cover bg-center opacity-90 group-hover:scale-105 transition-transform duration-700" style={{ backgroundImage: "url('https://picsum.photos/seed/light/600/400')" }}></div>
-            <div className="absolute inset-0 bg-gradient-to-t from-surface-light/80 to-transparent dark:from-surface-dark/80"></div>
-            <div className="absolute top-3 left-3 bg-surface-light/90 dark:bg-surface-dark/90 backdrop-blur-sm p-2 rounded-lg shadow-sm text-primary">
-              <span className="material-symbols-outlined text-2xl">visibility</span>
-            </div>
-            {selectedRole === 'protector' && (
-              <div className="absolute top-3 right-3 bg-primary text-stone-900 rounded-full p-1 animate-in zoom-in duration-300">
-                <span className="material-symbols-outlined text-lg font-bold">check</span>
-              </div>
-            )}
-          </div>
-          <div className="flex flex-col gap-1">
-            <h2 className="text-stone-900 dark:text-stone-50 text-xl font-bold leading-tight">我要守護他人</h2>
-            <p className="text-stone-500 dark:text-stone-400 font-body text-sm font-normal leading-relaxed">
-              我想確認親友的安全狀況，並接收他們的緊急求助警報。
-            </p>
-          </div>
-        </div>
-      </main>
-
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background-light via-background-light to-transparent dark:from-background-dark dark:via-background-dark dark:to-transparent z-20">
-        <div className="max-w-md mx-auto">
-          <button 
-            disabled={!selectedRole}
-            onClick={() => selectedRole && onSelectRole(selectedRole)}
-            className={`w-full flex items-center justify-center rounded-xl h-14 transition-all shadow-lg text-lg font-bold leading-normal tracking-wide active:scale-[0.98] ${
-              selectedRole ? 'bg-primary text-[#191710] shadow-primary/25 hover:bg-primary/90' : 'bg-stone-200 text-stone-400 cursor-not-allowed'
-            }`}
-          >
-            <span>下一步</span>
-            <span className="material-symbols-outlined ml-2 text-xl">arrow_forward</span>
-          </button>
-        </div>
+        <span className="text-tt-dim text-xs ml-2">{expanded ? '▲' : '▼'}</span>
       </div>
+
+      {/* expanded: suggested prompt */}
+      {expanded && (
+        <div className="mt-3 pt-3 border-t border-tt-border/50">
+          <div className="text-[10px] text-tt-dim mb-1">AI 生成提示詞建議</div>
+          <div
+            className="text-xs text-tt-muted bg-tt-card rounded-lg px-3 py-2 leading-relaxed font-mono"
+            style={{ fontSize: '11px' }}
+          >
+            "{topic.suggestedPrompt}"
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default RoleSelectionView;
+// ─── Main View ────────────────────────────────────────────────────────────────
+
+const TrendingView: React.FC = () => {
+  const { topics } = useApp();
+  const [activeRegion, setActiveRegion] = useState<RegionTarget | 'All'>('All');
+  const [activeCat, setActiveCat] = useState<TopicCategory | 'all'>('all');
+
+  const filtered = topics.filter(t => {
+    const regionOk = activeRegion === 'All' || t.region === activeRegion;
+    const catOk = activeCat === 'all' || t.category === activeCat;
+    return regionOk && catOk;
+  }).sort((a, b) => b.heatScore - a.heatScore);
+
+  const regions: (RegionTarget | 'All')[] = ['All', 'Global', 'CN', 'TW'];
+
+  return (
+    <div className="min-h-screen bg-tt-bg pb-20">
+
+      {/* header */}
+      <div className="px-4 pt-12 pb-4">
+        <h1 className="text-xl font-black text-white font-display">🔥 熱門趨勢</h1>
+        <p className="text-tt-muted text-xs mt-0.5">即時掃描抖音 / TikTok 熱門話題</p>
+      </div>
+
+      {/* region filter */}
+      <div className="px-4 flex gap-2 mb-3">
+        {regions.map(r => (
+          <button
+            key={r}
+            onClick={() => setActiveRegion(r)}
+            className="px-3 py-1 rounded-full text-xs font-bold transition-all"
+            style={{
+              background: activeRegion === r
+                ? r === 'All' ? '#FE2C55' : regionColors[r as RegionTarget]
+                : '#1e1e1e',
+              color: activeRegion === r ? '#fff' : '#555',
+              border: `1px solid ${activeRegion === r ? 'transparent' : '#2a2a2a'}`,
+            }}
+          >
+            {r}
+          </button>
+        ))}
+      </div>
+
+      {/* category pills */}
+      <div className="px-4 mb-4 overflow-x-auto">
+        <div className="flex gap-2" style={{ width: 'max-content' }}>
+          {ALL_CATS.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setActiveCat(cat)}
+              className="px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all whitespace-nowrap"
+              style={{
+                background: activeCat === cat ? 'rgba(254,44,85,0.15)' : '#1e1e1e',
+                color: activeCat === cat ? '#FE2C55' : '#555',
+                border: `1px solid ${activeCat === cat ? 'rgba(254,44,85,0.3)' : '#2a2a2a'}`,
+              }}
+            >
+              {cat === 'all' ? '全部' : categoryLabel[cat]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* topic count */}
+      <div className="px-4 mb-3">
+        <span className="text-[10px] text-tt-dim font-mono">{filtered.length} 個話題</span>
+      </div>
+
+      {/* topic list */}
+      <div className="px-4 space-y-3">
+        {filtered.map(topic => (
+          <TopicCard key={topic.id} topic={topic} />
+        ))}
+      </div>
+
+      {/* API note */}
+      <div className="mx-4 mt-4 p-3 rounded-xl border border-tt-border/50 bg-tt-surface/50">
+        <div className="text-[10px] text-tt-dim leading-relaxed">
+          <span className="text-tt-muted font-medium">API 整合：</span>
+          {' '}正式版接入 TikTok Research API、Trending Content API 及 Hashtag Analytics API
+          進行即時熱度分析。需於 TikTok for Developers 申請 Research API 存取。
+        </div>
+      </div>
+
+      <BottomNav />
+    </div>
+  );
+};
+
+export default TrendingView;
