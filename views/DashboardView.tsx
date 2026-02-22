@@ -1,201 +1,341 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useApp } from '../App';
+import { PipelineStage, LogEntry, LogLevel, StageStatus } from '../types';
+
+// ─── Shared Bottom Nav ────────────────────────────────────────────────────────
+
+export const BottomNav: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const tabs = [
+    { path: '/dashboard', icon: '⬡', label: '控制台' },
+    { path: '/trending',  icon: '🔥', label: '趨勢' },
+    { path: '/generate',  icon: '🎬', label: '生成' },
+    { path: '/analytics', icon: '📊', label: '分析' },
+    { path: '/settings',  icon: '⚙️', label: '設定' },
+  ];
+  return (
+    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-tt-surface border-t border-tt-border z-50">
+      <div className="flex">
+        {tabs.map(tab => {
+          const active = location.pathname === tab.path;
+          return (
+            <button
+              key={tab.path}
+              onClick={() => navigate(tab.path)}
+              className="flex-1 flex flex-col items-center justify-center py-3 gap-0.5 transition-colors"
+              style={{ color: active ? '#FE2C55' : '#555' }}
+            >
+              <span className="text-lg leading-none">{tab.icon}</span>
+              <span className="text-[10px] font-medium">{tab.label}</span>
+              {active && (
+                <div className="w-4 h-0.5 rounded-full mt-0.5" style={{ background: '#FE2C55' }} />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+};
+
+// ─── Stage Definitions ────────────────────────────────────────────────────────
+
+const STAGE_DEFS = [
+  { label: '趨勢探索', icon: '🔥', key: 'trending' },
+  { label: 'AI 生成',  icon: '🎬', key: 'generation' },
+  { label: 'SEO 優化', icon: '🏷',  key: 'seo' },
+  { label: '自動發布', icon: '📤', key: 'publish' },
+  { label: '流量回饋', icon: '📊', key: 'analytics' },
+];
+
+const stageColor: Record<StageStatus, string> = {
+  idle:      '#333',
+  running:   '#FE2C55',
+  completed: '#00D85B',
+  error:     '#FF4444',
+};
+
+const stageBg: Record<StageStatus, string> = {
+  idle:      '#1e1e1e',
+  running:   'rgba(254,44,85,0.12)',
+  completed: 'rgba(0,216,91,0.10)',
+  error:     'rgba(255,68,68,0.12)',
+};
+
+// ─── Log Entry Row ────────────────────────────────────────────────────────────
+
+const levelColor: Record<LogLevel, string> = {
+  info:    '#888',
+  success: '#00D85B',
+  warning: '#FFB800',
+  error:   '#FF4444',
+};
+
+const LogRow: React.FC<{ entry: LogEntry }> = ({ entry }) => (
+  <div className="flex gap-2 items-start py-1.5 border-b border-tt-border/40 animate-fade-in-up">
+    <span className="text-tt-dim font-mono text-[10px] mt-0.5 shrink-0">{entry.timestamp}</span>
+    <span className="shrink-0 w-1.5 h-1.5 rounded-full mt-1.5"
+      style={{ background: levelColor[entry.level] }} />
+    <span className="text-xs font-mono" style={{ color: levelColor[entry.level] }}>
+      [{entry.stage}]
+    </span>
+    <span className="text-xs text-tt-muted flex-1">{entry.message}</span>
+  </div>
+);
+
+// ─── Dashboard View ───────────────────────────────────────────────────────────
 
 const DashboardView: React.FC = () => {
-  const navigate = useNavigate();
-  const [timeLeft, setTimeLeft] = useState(14 * 60 + 44);
-  const [isPaused, setIsPaused] = useState(false);
-  const [showNoteModal, setShowNoteModal] = useState(false);
-  const [noteText, setNoteText] = useState('');
-  const [sendingNote, setSendingNote] = useState(false);
+  const { pipeline, logs, stats, isRunning, runPipeline, resetPipeline } = useApp();
 
-  // 滑動 SOS 狀態
-  const [sliderPos, setSliderPos] = useState(0);
-  const [triggered, setTriggered] = useState(false);
-  const sliderRef = useRef<HTMLDivElement>(null);
+  const stages: PipelineStage[] = pipeline?.stages ?? [
+    { status: 'idle', progress: 0 },
+    { status: 'idle', progress: 0 },
+    { status: 'idle', progress: 0 },
+    { status: 'idle', progress: 0 },
+    { status: 'idle', progress: 0 },
+  ];
 
-  useEffect(() => {
-    let timer: number;
-    if (!isPaused && timeLeft > 0) {
-      timer = window.setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [isPaused, timeLeft]);
+  const completedCount = stages.filter(s => s.status === 'completed').length;
+  const overallProgress = pipeline ? Math.round((completedCount / 5) * 100) : 0;
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleIAmSafe = () => {
-    setTimeLeft(15 * 60);
-    const toast = document.createElement('div');
-    toast.className = "fixed bottom-24 left-1/2 -translate-x-1/2 bg-stone-800 text-white px-4 py-2 rounded-full text-[10px] font-bold shadow-xl z-[100] animate-in fade-in slide-in-from-bottom-4";
-    toast.innerText = "已向守護者發送平安確認";
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2000);
-  };
-
-  // 優化後的滑動邏輯 (支援觸控與滑鼠)
-  const handleMove = (clientX: number) => {
-    if (!sliderRef.current || triggered) return;
-    const rect = sliderRef.current.getBoundingClientRect();
-    const buttonWidth = 40; 
-    const padding = 4;
-    const availableWidth = rect.width - buttonWidth - (padding * 2);
-    
-    let x = clientX - rect.left - (buttonWidth / 2) - padding;
-    if (x < 0) x = 0;
-    if (x > availableWidth) x = availableWidth;
-    
-    setSliderPos(x);
-    
-    if (x >= availableWidth * 0.9) {
-      setSliderPos(availableWidth);
-      setTriggered(true);
-      setTimeout(() => navigate('/sos-alert'), 150);
-    }
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => handleMove(e.touches[0].clientX);
-  const onMouseMove = (e: React.MouseEvent) => { if (e.buttons === 1) handleMove(e.clientX); };
-  
-  const onEnd = () => {
-    if (!triggered) setSliderPos(0);
-  };
-
-  const r = 44;
-  const sw = 8;
-  const c = 2 * Math.PI * r;
-  const progress = timeLeft / (15 * 60);
-  const offset = c * (1 - progress);
+  const agentStatus = isRunning
+    ? { label: '執行中', color: '#FE2C55', dot: 'animate-pulse' }
+    : pipeline?.completedAt
+    ? { label: '已完成', color: '#00D85B', dot: '' }
+    : { label: '待機中', color: '#555', dot: '' };
 
   return (
-    <div className="relative flex h-full min-h-screen w-full flex-col overflow-x-hidden max-w-md mx-auto bg-[#fdf9f6] dark:bg-background-dark select-none">
-      <header className="flex items-center justify-between px-5 pt-6 pb-2 shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="relative cursor-pointer active:scale-95 transition-transform" onClick={() => navigate('/privacy')}>
-            <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-9 border-2 border-white shadow-sm" style={{backgroundImage: "url('https://picsum.photos/seed/sarah/100/100')"}}></div>
-            <div className="absolute bottom-0 right-0 size-2.5 bg-[#A4D9B6] border-2 border-[#fdf9f6] rounded-full"></div>
-          </div>
-          <div className="flex flex-col text-left">
-            <h2 className="font-display text-sm font-bold leading-tight text-stone-800 dark:text-stone-200">Sarah Jenkins</h2>
-            <p className="text-[9px] text-stone-400 font-bold tracking-widest uppercase">監控中 • 步行</p>
-          </div>
-        </div>
-        <button onClick={() => navigate('/logs')} className="flex items-center justify-center size-9 rounded-full bg-white dark:bg-stone-800 shadow-sm border border-stone-100 dark:border-stone-700 text-stone-400 active:scale-90 transition-transform">
-          <span className="material-symbols-outlined text-[20px]">notifications</span>
-        </button>
-      </header>
+    <div className="min-h-screen bg-tt-bg pb-20">
 
-      <main className="flex-1 flex flex-col items-center justify-center py-2 relative">
-        <div className="grid place-items-center relative w-full max-w-[240px] aspect-square mx-auto">
-          <div className="absolute inset-0">
-            <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90 overflow-visible">
-              <circle cx="50" cy="50" r={r} stroke="#eeebe8" strokeWidth={sw} fill="transparent" className="dark:stroke-stone-800/40" />
-              <circle cx="50" cy="50" r={r} stroke="#d1af47" strokeWidth={sw} fill="transparent" strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round" className="transition-all duration-1000 ease-linear" />
-            </svg>
-          </div>
-          <div className="relative z-10 flex flex-col items-center pointer-events-none transform translate-y-1">
-            <div className="font-display text-5xl font-medium leading-none text-stone-900 dark:text-white tabular-nums tracking-tighter">
-              {formatTime(timeLeft)}
-            </div>
-            <div className="text-stone-400 text-[10px] font-bold tracking-[0.25em] mt-5 uppercase">剩餘分鐘</div>
-          </div>
+      {/* ── Header ─────────────────────────────────────────── */}
+      <div className="px-4 pt-12 pb-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-black text-white tracking-wide font-display">SEEDANCE AGENT</h1>
+          <p className="text-tt-muted text-xs mt-0.5">抖音 AI 自動化內容代理</p>
         </div>
-          
-        <div className="mt-8 w-full px-12">
-          <button onClick={handleIAmSafe} className="w-full flex items-center justify-center gap-2 bg-[#A4D9B6] hover:bg-[#95c5a5] active:scale-[0.98] transition-all h-12 rounded-2xl shadow-[0_8px_16px_-4px_rgba(164,217,182,0.3)]">
-            <div className="size-5 rounded-full border-2 border-stone-800 flex items-center justify-center">
-              <span className="material-symbols-outlined text-stone-800 font-black text-[12px]">check</span>
-            </div>
-            <span className="text-stone-800 text-base font-bold tracking-tight">我現在很平安</span>
-          </button>
-          <p className="text-center text-stone-400 text-[9px] mt-3 font-bold uppercase tracking-[0.2em]">下次檢查時間：18:00</p>
-        </div>
-      </main>
-
-      {/* 功能卡片區 */}
-      <div className="px-6 py-2 mt-auto">
-        <div className="grid grid-cols-3 gap-3">
-          <button onClick={() => setTimeLeft(prev => prev + 10 * 60)} className="flex flex-col items-center justify-center gap-2 h-20 rounded-2xl bg-white dark:bg-stone-800 shadow-sm border border-stone-50 dark:border-stone-700 active:scale-95 transition-all">
-            <div className="size-8 rounded-full bg-[#fdf2d8] dark:bg-primary/10 flex items-center justify-center text-primary"><span className="material-symbols-outlined text-[18px]">more_time</span></div>
-            <span className="text-[9px] font-bold text-stone-800 dark:text-stone-200 uppercase tracking-wider">延長 10 分</span>
-          </button>
-          <button onClick={() => setShowNoteModal(true)} className="flex flex-col items-center justify-center gap-2 h-20 rounded-2xl bg-white dark:bg-stone-800 shadow-sm border border-stone-50 dark:border-stone-700 active:scale-95 transition-all">
-            <div className="size-8 rounded-full bg-[#fde8dc] dark:bg-orange-900/10 flex items-center justify-center text-[#e67e22]"><span className="material-symbols-outlined text-[18px]">edit_note</span></div>
-            <span className="text-[9px] font-bold text-stone-800 dark:text-stone-200 uppercase tracking-wider">備註</span>
-          </button>
-          <button onClick={() => setIsPaused(!isPaused)} className="flex flex-col items-center justify-center gap-2 h-20 rounded-2xl bg-white dark:bg-stone-800 shadow-sm border border-stone-50 dark:border-stone-700 active:scale-95 transition-all">
-            <div className={`size-8 rounded-full flex items-center justify-center ${isPaused ? 'bg-primary text-white' : 'bg-[#e3ecf8] dark:bg-blue-900/10 text-[#3498db]'}`}><span className="material-symbols-outlined text-[18px]">{isPaused ? 'play_arrow' : 'pause'}</span></div>
-            <span className="text-[9px] font-bold text-stone-800 dark:text-stone-200 uppercase tracking-wider">{isPaused ? '繼續' : '暫停'}</span>
-          </button>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-tt-surface border border-tt-border">
+          <span
+            className={`w-2 h-2 rounded-full ${agentStatus.dot}`}
+            style={{ background: agentStatus.color }}
+          />
+          <span className="text-xs font-medium" style={{ color: agentStatus.color }}>
+            {agentStatus.label}
+          </span>
         </div>
       </div>
 
-      {/* 滑動發送 SOS - 修復版 */}
-      <div className="px-6 pb-4 pt-1">
-        <div 
-          ref={sliderRef}
-          className="relative w-full h-12 bg-[#f9e6e6] dark:bg-red-950/20 rounded-full flex items-center p-1 overflow-hidden touch-none"
-          onMouseMove={onMouseMove}
-          onMouseUp={onEnd}
-          onMouseLeave={onEnd}
-        >
-          <div 
-            className="h-10 w-10 bg-alert-red rounded-full flex items-center justify-center shadow-lg relative z-20 transition-transform duration-75 active:scale-95 cursor-grab active:cursor-grabbing"
-            style={{ transform: `translateX(${sliderPos}px)` }}
-            onTouchMove={onTouchMove}
-            onTouchEnd={onEnd}
+      <div className="px-4 space-y-4">
+
+        {/* ── Stats Row ──────────────────────────────────────── */}
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { label: '總執行', value: stats.totalRuns.toString(), unit: '次' },
+            { label: '影片數', value: stats.totalVideos.toString(), unit: '支' },
+            { label: '總觀看', value: stats.totalViews, unit: '' },
+          ].map(s => (
+            <div key={s.label} className="bg-tt-surface border border-tt-border rounded-xl p-3 text-center">
+              <div className="text-lg font-black text-white">
+                {s.value}<span className="text-xs text-tt-muted ml-0.5">{s.unit}</span>
+              </div>
+              <div className="text-[10px] text-tt-muted mt-0.5">{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Pipeline Stages ────────────────────────────────── */}
+        <div className="bg-tt-surface border border-tt-border rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-bold text-white">流水線進度</span>
+            {pipeline && (
+              <span className="text-xs font-mono text-tt-muted">{overallProgress}%</span>
+            )}
+          </div>
+
+          {/* stage nodes */}
+          <div className="flex items-center gap-1 mb-3">
+            {STAGE_DEFS.map((def, i) => {
+              const stage = stages[i];
+              const color = stageColor[stage.status];
+              const bg = stageBg[stage.status];
+              return (
+                <React.Fragment key={def.key}>
+                  <div
+                    className="flex-shrink-0 flex flex-col items-center gap-1 rounded-xl px-2 py-2 transition-all duration-300"
+                    style={{
+                      background: bg,
+                      border: `1px solid ${color}40`,
+                      minWidth: 52,
+                      boxShadow: stage.status === 'running'
+                        ? `0 0 12px ${color}40`
+                        : stage.status === 'completed'
+                        ? `0 0 8px ${color}20`
+                        : 'none',
+                    }}
+                  >
+                    <span className="text-base leading-none">{def.icon}</span>
+                    <span className="text-[9px] text-center leading-tight font-medium"
+                      style={{ color }}>{def.label}</span>
+                    <div className="flex items-center gap-1">
+                      {stage.status === 'running' && (
+                        <span className="text-[8px] font-mono animate-pulse" style={{ color }}>
+                          {stage.progress}%
+                        </span>
+                      )}
+                      {stage.status === 'completed' && <span className="text-[10px]">✓</span>}
+                      {stage.status === 'idle' && (
+                        <span className="text-[8px]" style={{ color: '#444' }}>–</span>
+                      )}
+                    </div>
+                  </div>
+                  {i < 4 && (
+                    <div className="flex-1 h-px" style={{
+                      background: stages[i].status === 'completed'
+                        ? 'linear-gradient(90deg, #00D85B, #555)'
+                        : '#2a2a2a'
+                    }} />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+
+          {/* overall progress bar */}
+          {pipeline && (
+            <div className="h-1.5 bg-tt-border rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${overallProgress}%`,
+                  background: isRunning
+                    ? 'linear-gradient(90deg, #FE2C55, #8B5CF6, #25F4EE)'
+                    : overallProgress === 100
+                    ? '#00D85B'
+                    : '#8B5CF6',
+                }}
+              />
+            </div>
+          )}
+
+          {/* current topic */}
+          {pipeline?.selectedTopic && (
+            <div className="mt-3 flex items-center gap-2 bg-tt-card rounded-lg px-3 py-2">
+              <span className="text-base">🔥</span>
+              <div>
+                <div className="text-xs font-bold text-white">{pipeline.selectedTopic.tag}</div>
+                <div className="text-[10px] text-tt-muted">{pipeline.selectedTopic.title}</div>
+              </div>
+              <div className="ml-auto text-xs font-bold" style={{ color: '#FF7A00' }}>
+                {pipeline.selectedTopic.heatScore}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Control Buttons ────────────────────────────────── */}
+        <div className="flex gap-3">
+          <button
+            onClick={runPipeline}
+            disabled={isRunning}
+            className="flex-1 py-3.5 rounded-xl font-bold text-sm text-white transition-all duration-200 active:scale-95"
+            style={{
+              background: isRunning
+                ? 'rgba(254,44,85,0.3)'
+                : 'linear-gradient(135deg, #FE2C55, #8B5CF6)',
+              boxShadow: isRunning ? 'none' : '0 0 20px rgba(254,44,85,0.35)',
+              opacity: isRunning ? 0.7 : 1,
+            }}
           >
-            <span className="text-white font-black text-[10px] tracking-tighter">SOS</span>
-          </div>
-          <div className={`flex-1 text-center pr-10 transition-opacity pointer-events-none ${sliderPos > 20 ? 'opacity-0' : 'opacity-100'}`}>
-            <span className="text-alert-red font-bold text-[11px] tracking-widest uppercase">向右滑動發送 SOS</span>
-          </div>
-          {/* 背景填充 */}
-          <div 
-            className="absolute left-1 top-1 bottom-1 bg-alert-red/10 rounded-full z-10 pointer-events-none"
-            style={{ width: `${sliderPos + 40}px` }}
-          ></div>
+            {isRunning ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin inline-block" />
+                執行中...
+              </span>
+            ) : (
+              '▶  執行流水線'
+            )}
+          </button>
+          <button
+            onClick={resetPipeline}
+            disabled={isRunning}
+            className="px-4 py-3.5 rounded-xl font-bold text-sm border border-tt-border text-tt-muted transition-all active:scale-95"
+            style={{ opacity: isRunning ? 0.4 : 1 }}
+          >
+            ↺ 重置
+          </button>
         </div>
+
+        {/* ── Latest Result ─────────────────────────────────── */}
+        {pipeline?.analytics && (
+          <div className="bg-tt-surface border border-tt-border rounded-2xl p-4">
+            <div className="text-sm font-bold text-white mb-3">最新發布成效</div>
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { label: '觀看', value: pipeline.analytics.views.toLocaleString(), color: '#25F4EE' },
+                { label: '按讚', value: pipeline.analytics.likes.toLocaleString(), color: '#FE2C55' },
+                { label: '分享', value: pipeline.analytics.shares.toLocaleString(), color: '#8B5CF6' },
+                { label: '互動率', value: `${pipeline.analytics.engagementRate}%`, color: '#00D85B' },
+              ].map(m => (
+                <div key={m.label} className="text-center">
+                  <div className="text-sm font-black" style={{ color: m.color }}>{m.value}</div>
+                  <div className="text-[10px] text-tt-muted">{m.label}</div>
+                </div>
+              ))}
+            </div>
+            {pipeline.analytics.insights[0] && (
+              <div className="mt-3 text-[11px] text-tt-muted bg-tt-card rounded-lg px-3 py-2 leading-relaxed">
+                💡 {pipeline.analytics.insights[0]}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Activity Log ──────────────────────────────────── */}
+        <div className="bg-tt-surface border border-tt-border rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-bold text-white">活動紀錄</span>
+            <span className="text-[10px] text-tt-dim font-mono">{logs.length} 條</span>
+          </div>
+          <div className="max-h-52 overflow-y-auto space-y-0">
+            {logs.length === 0 ? (
+              <div className="text-center py-6 text-tt-dim text-xs">
+                點擊「執行流水線」開始自動化代理...
+              </div>
+            ) : (
+              logs.slice(0, 15).map(entry => <LogRow key={entry.id} entry={entry} />)
+            )}
+          </div>
+        </div>
+
+        {/* ── Quick Stats ───────────────────────────────────── */}
+        <div className="bg-tt-surface border border-tt-border rounded-2xl p-4">
+          <div className="text-sm font-bold text-white mb-3">歷史表現</div>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: '平均互動率', value: stats.avgEngagement, color: '#00D85B' },
+              { label: '總按讚數', value: stats.totalLikes, color: '#FE2C55' },
+              { label: '最佳話題', value: stats.topPerformingTag, color: '#FFD60A', small: true },
+              { label: '總觀看', value: stats.totalViews, color: '#25F4EE' },
+            ].map(s => (
+              <div key={s.label} className="bg-tt-card rounded-xl p-3">
+                <div
+                  className="font-black"
+                  style={{ color: s.color, fontSize: s.small ? '11px' : '18px' }}
+                >
+                  {s.value}
+                </div>
+                <div className="text-[10px] text-tt-muted mt-0.5">{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
       </div>
 
-      <nav className="bg-white/90 dark:bg-stone-900/90 backdrop-blur-lg border-t border-stone-100 dark:border-stone-800 px-8 pb-5 pt-2.5 flex justify-between items-center text-[9px] font-bold uppercase tracking-widest shrink-0">
-        <button onClick={() => navigate('/dashboard')} className="flex flex-col items-center gap-0.5 text-primary">
-          <span className="material-symbols-outlined text-[22px]" style={{fontVariationSettings: "'FILL' 1"}}>home</span>
-          <span>首頁</span>
-        </button>
-        <button onClick={() => navigate('/guardian-map')} className="flex flex-col items-center gap-0.5 text-stone-400 active:scale-90 transition-transform">
-          <span className="material-symbols-outlined text-[22px]">map</span>
-          <span>地圖</span>
-        </button>
-        <button onClick={() => navigate('/logs')} className="flex flex-col items-center gap-0.5 text-stone-400 active:scale-90 transition-transform">
-          <span className="material-symbols-outlined text-[22px]">local_activity</span>
-          <span>活動</span>
-        </button>
-        <button onClick={() => navigate('/privacy')} className="flex flex-col items-center gap-0.5 text-stone-400 active:scale-90 transition-transform">
-          <span className="material-symbols-outlined text-[22px]">settings</span>
-          <span>設定</span>
-        </button>
-      </nav>
-
-      {showNoteModal && (
-        <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/30 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="w-full max-w-md bg-white dark:bg-stone-900 rounded-t-[28px] p-5 pb-8 shadow-2xl animate-in slide-in-from-bottom-full duration-300">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base font-bold text-stone-800 dark:text-white">新增安全備註</h3>
-              <button onClick={() => setShowNoteModal(false)} className="size-7 rounded-full bg-stone-100 dark:bg-stone-800 flex items-center justify-center text-stone-400"><span className="material-symbols-outlined text-[18px]">close</span></button>
-            </div>
-            <textarea autoFocus value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="例如：我正在搭乘計程車..." className="w-full h-24 p-3.5 rounded-xl bg-stone-50 dark:bg-stone-800 border-none focus:ring-1 focus:ring-primary outline-none text-xs mb-4 resize-none"></textarea>
-            <button onClick={() => { setSendingNote(true); setTimeout(() => { setSendingNote(false); setShowNoteModal(false); setNoteText(''); }, 1000); }} disabled={sendingNote || !noteText.trim()} className="w-full h-11 rounded-xl bg-primary text-stone-900 font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2">{sendingNote ? '傳送中...' : '送出'}</button>
-          </div>
-        </div>
-      )}
+      <BottomNav />
     </div>
   );
 };

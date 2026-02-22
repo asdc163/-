@@ -1,13 +1,13 @@
 
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-TW" class="dark">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>微光 Glimmer</title>
+    <title>SEEDANCE AGENT | 抖音自動化代理</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script>
         tailwind.config = {
@@ -15,58 +15,144 @@
             theme: {
                 extend: {
                     colors: {
-                        "primary": "#d1af47",
-                        "primary-dark": "#b89a3e",
-                        "background-light": "#fdf9f6",
-                        "background-dark": "#1d1d20",
-                        "surface-light": "#ffffff",
-                        "surface-dark": "#2a2a2d",
-                        "text-main": "#191710",
-                        "text-muted": "#8e8157",
-                        "secondary-green": "#A4D9B6",
-                        "alert-red": "#D62828",
+                        "tt-red":     "#FE2C55",
+                        "tt-cyan":    "#25F4EE",
+                        "tt-purple":  "#8B5CF6",
+                        "tt-yellow":  "#FFD60A",
+                        "tt-green":   "#00D85B",
+                        "tt-orange":  "#FF7A00",
+                        "tt-bg":      "#0a0a0a",
+                        "tt-surface": "#161616",
+                        "tt-card":    "#1e1e1e",
+                        "tt-border":  "#2a2a2a",
+                        "tt-border2": "#333333",
+                        "tt-text":    "#FFFFFF",
+                        "tt-muted":   "#888888",
+                        "tt-dim":     "#555555",
                     },
                     fontFamily: {
-                        "display": ["Noto Serif TC", "serif"],
-                        "body": ["Noto Sans TC", "Plus Jakarta Sans", "sans-serif"],
+                        "display": ["Inter", "sans-serif"],
+                        "body":    ["Inter", "Noto Sans TC", "sans-serif"],
+                        "mono":    ["JetBrains Mono", "monospace"],
                     },
                     backgroundImage: {
-                        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-                    }
+                        'gradient-tt':      'linear-gradient(135deg, #FE2C55 0%, #25F4EE 100%)',
+                        'gradient-ai':      'linear-gradient(135deg, #8B5CF6 0%, #25F4EE 100%)',
+                        'gradient-fire':    'linear-gradient(135deg, #FF7A00 0%, #FE2C55 100%)',
+                        'gradient-surface': 'linear-gradient(180deg, #1e1e1e 0%, #161616 100%)',
+                    },
+                    keyframes: {
+                        'pulse-red': {
+                            '0%, 100%': { boxShadow: '0 0 0 0 rgba(254,44,85,0.4)' },
+                            '50%':      { boxShadow: '0 0 0 8px rgba(254,44,85,0)' },
+                        },
+                        'pulse-cyan': {
+                            '0%, 100%': { boxShadow: '0 0 0 0 rgba(37,244,238,0.4)' },
+                            '50%':      { boxShadow: '0 0 0 8px rgba(37,244,238,0)' },
+                        },
+                        'flow': {
+                            '0%':   { backgroundPosition: '0% 50%' },
+                            '100%': { backgroundPosition: '100% 50%' },
+                        },
+                        'scan': {
+                            '0%':   { transform: 'translateY(-100%)' },
+                            '100%': { transform: 'translateY(400%)' },
+                        },
+                        'blink': {
+                            '0%, 100%': { opacity: '1' },
+                            '50%':      { opacity: '0' },
+                        },
+                        'fade-in-up': {
+                            '0%':   { opacity: '0', transform: 'translateY(16px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        'slide-in': {
+                            '0%':   { opacity: '0', transform: 'translateX(-8px)' },
+                            '100%': { opacity: '1', transform: 'translateX(0)' },
+                        },
+                        'spin-slow': {
+                            '0%':   { transform: 'rotate(0deg)' },
+                            '100%': { transform: 'rotate(360deg)' },
+                        },
+                    },
+                    animation: {
+                        'pulse-red':   'pulse-red 2s ease-in-out infinite',
+                        'pulse-cyan':  'pulse-cyan 2s ease-in-out infinite',
+                        'flow':        'flow 3s linear infinite',
+                        'scan':        'scan 2s ease-in-out infinite',
+                        'blink':       'blink 1s step-end infinite',
+                        'fade-in-up':  'fade-in-up 0.4s ease-out forwards',
+                        'slide-in':    'slide-in 0.3s ease-out forwards',
+                        'spin-slow':   'spin-slow 3s linear infinite',
+                    },
                 },
             },
         }
     </script>
     <style>
-        @keyframes float {
-            0% { transform: translateY(0px) rotate(45deg); }
-            50% { transform: translateY(-10px) rotate(45deg); }
-            100% { transform: translateY(0px) rotate(45deg); }
+        * { box-sizing: border-box; }
+        body { overscroll-behavior-y: none; background: #0a0a0a; }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #161616; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+        .glow-red   { box-shadow: 0 0 20px rgba(254,44,85,0.35); }
+        .glow-cyan  { box-shadow: 0 0 20px rgba(37,244,238,0.35); }
+        .glow-purple{ box-shadow: 0 0 20px rgba(139,92,246,0.35); }
+        .glow-green { box-shadow: 0 0 16px rgba(0,216,91,0.35); }
+
+        .text-glow-red  { text-shadow: 0 0 20px rgba(254,44,85,0.6); }
+        .text-glow-cyan { text-shadow: 0 0 20px rgba(37,244,238,0.6); }
+
+        .bg-grid {
+            background-image:
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
         }
-        .animate-float {
-            animation: float 3s ease-in-out infinite;
+
+        .pipeline-connector {
+            flex: 1;
+            height: 2px;
+            background: linear-gradient(90deg, var(--from-color, #333) 0%, var(--to-color, #333) 100%);
+            position: relative;
+            overflow: hidden;
         }
-        .bg-noise {
-            background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuDs6Wp2zIakwIi16jQEVT0BB8uG83fqzBTs_pSKNLnavqg9DxtoUIVzeKk1x3tmb1cNmTP4VO439aJpyDNjYAaWwmEZ1ILFo17cYRCiJsoaP5JcRfTDEVnRpXG4A-fRb3eduSS6V46b87xOgmLdZQghu9F9JqaSVp0GbmuLihEITbGamzMrVcxXkCq9y9MDxF_YdhsSqIHC8zEJdDAvv3ymSF0rQ1H5mlC0p8Bu7jmfGUefrS-5txTl_qDa4tu_xNtYRcI_rP1dogs);
-            opacity: 0.1;
-            mix-blend-mode: multiply;
+        .pipeline-connector.active::after {
+            content: '';
             position: absolute;
-            inset: 0;
-            pointer-events: none;
-            z-index: 1;
+            top: 0; left: -30px;
+            width: 30px; height: 2px;
+            background: linear-gradient(90deg, transparent, #FE2C55, transparent);
+            animation: scan-x 1.5s ease-in-out infinite;
         }
-        .dark .bg-noise {
-            mix-blend-mode: overlay;
-            opacity: 0.05;
+        @keyframes scan-x {
+            0%   { left: -30px; }
+            100% { left: 100%; }
         }
-        .timer-ring {
-            background: conic-gradient(from 0deg, #d1af47 75%, #e5e7eb 75%);
+
+        .progress-bar-animated {
+            background: linear-gradient(90deg, #FE2C55, #8B5CF6, #25F4EE);
+            background-size: 200% 100%;
+            animation: flow 1.5s linear infinite;
         }
-        .dark .timer-ring {
-            background: conic-gradient(from 0deg, #d1af47 75%, #374151 75%);
+
+        @keyframes flow {
+            0%   { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
         }
-        body {
-            overscroll-behavior-y: none;
+
+        .stage-glow-running {
+            box-shadow: 0 0 0 1px rgba(254,44,85,0.5), 0 0 20px rgba(254,44,85,0.2);
+        }
+        .stage-glow-completed {
+            box-shadow: 0 0 0 1px rgba(0,216,91,0.4), 0 0 16px rgba(0,216,91,0.15);
+        }
+        .heat-bar {
+            height: 4px;
+            border-radius: 2px;
+            background: linear-gradient(90deg, #FF7A00, #FE2C55);
         }
     </style>
 <script type="importmap">
@@ -80,7 +166,7 @@
 }
 </script>
 </head>
-<body class="bg-background-light dark:bg-background-dark font-body text-text-main">
+<body class="bg-tt-bg font-body text-tt-text">
     <div id="root"></div>
 </body>
 </html>
