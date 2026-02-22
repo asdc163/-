@@ -3,7 +3,10 @@
   "name": "Polymarket Radar",
   "version": "1.0.0",
   "description": "Instantly discover relevant Polymarket prediction markets while browsing Twitter/X and YouTube.",
-  "permissions": ["storage", "activeTab"],
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
   "host_permissions": [
     "https://gamma-api.polymarket.com/*",
     "https://clob.polymarket.com/*",
@@ -13,8 +16,7 @@
     "https://www.youtube.com/*"
   ],
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {
@@ -23,7 +25,9 @@
         "https://x.com/*",
         "https://www.youtube.com/*"
       ],
-      "js": ["content.js"],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ],

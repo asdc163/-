@@ -39,12 +39,13 @@ await esbuild.build({
 });
 console.log('✓ content.js');
 
-console.log('🔨 Building background service worker (ESM)...');
+console.log('🔨 Building background service worker (IIFE)...');
 await esbuild.build({
   entryPoints: [resolve(__dirname, 'src/background/service-worker.ts')],
   bundle: true,
   outfile: resolve(dist, 'background.js'),
-  format: 'esm',
+  format: 'iife',           // IIFE avoids the ESM "no import/export" issue in Chrome
+  globalName: 'PolymarketBg',
   platform: 'browser',
   target: 'chrome120',
   sourcemap: false,
