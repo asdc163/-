@@ -9,6 +9,8 @@ interface RawMarket {
   slug: string;
   outcomes: string;
   outcomePrices: string;
+  clobTokenIds: string;
+  negRisk?: boolean;
   volume: string;
   volume24hr: string;
   liquidity: string;
@@ -24,6 +26,7 @@ interface RawEvent {
   endDate: string;
   active: boolean;
   closed: boolean;
+  negRisk?: boolean;
   volume: string;
   volume24hr: string;
   liquidity: string;
@@ -34,33 +37,24 @@ interface SearchResponse {
   events?: RawEvent[];
 }
 
+function parseJsonArray(raw: string | undefined, fallback: string[]): string[] {
+  try {
+    return JSON.parse(raw || JSON.stringify(fallback));
+  } catch {
+    return fallback;
+  }
+}
+
 function parseOutcomePrices(raw: string | undefined): number[] {
-  try {
-    const parsed = JSON.parse(raw || '["0.5","0.5"]');
-    return parsed.map((p: string) => parseFloat(p));
-  } catch {
-    return [0.5, 0.5];
-  }
+  const parsed = parseJsonArray(raw, ['0.5', '0.5']);
+  return parsed.map(p => parseFloat(p));
 }
 
-function parseOutcomes(raw: string | undefined): string[] {
-  try {
-    return JSON.parse(raw || '["Yes","No"]');
-  } catch {
-    return ['Yes', 'No'];
-  }
-}
-
-function computeRelevanceScore(
-  text: string,
-  keywords: string[]
-): number {
+function computeRelevanceScore(text: string, keywords: string[]): number {
   const lowerText = text.toLowerCase();
   let score = 0;
   for (const kw of keywords) {
-    if (lowerText.includes(kw.toLowerCase())) {
-      score += kw.length;
-    }
+    if (lowerText.includes(kw.toLowerCase())) score += kw.length;
   }
   return score;
 }
@@ -71,11 +65,9 @@ function marketFromRaw(
   eventTitle: string,
   keywords: string[]
 ): PolymarketMarket {
-  const outcomes = parseOutcomes(raw.outcomes);
+  const outcomes = parseJsonArray(raw.outcomes, ['Yes', 'No']);
   const outcomePrices = parseOutcomePrices(raw.outcomePrices);
-  const vol = parseFloat(raw.volume || '0');
-  const vol24h = parseFloat(raw.volume24hr || '0');
-  const liq = parseFloat(raw.liquidity || '0');
+  const clobTokenIds = parseJsonArray(raw.clobTokenIds, []);
 
   const url = raw.slug
     ? `${POLYMARKET_BASE}/market/${raw.slug}`
@@ -87,9 +79,11 @@ function marketFromRaw(
     slug: raw.slug,
     outcomes,
     outcomePrices,
-    volume: vol,
-    volume24hr: vol24h,
-    liquidity: liq,
+    clobTokenIds,
+    negRisk: raw.negRisk ?? false,
+    volume: parseFloat(raw.volume || '0'),
+    volume24hr: parseFloat(raw.volume24hr || '0'),
+    liquidity: parseFloat(raw.liquidity || '0'),
     endDate: raw.endDate,
     active: raw.active,
     closed: raw.closed,
@@ -100,9 +94,32 @@ function marketFromRaw(
   };
 }
 
+function eventAsMarket(event: RawEvent, keywords: string[]): PolymarketMarket {
+  return {
+    id: event.id,
+    question: event.title,
+    slug: event.slug,
+    outcomes: [],
+    outcomePrices: [],
+    clobTokenIds: [],
+    negRisk: event.negRisk ?? false,
+    volume: parseFloat(event.volume || '0'),
+    volume24hr: parseFloat(event.volume24hr || '0'),
+    liquidity: parseFloat(event.liquidity || '0'),
+    endDate: event.endDate,
+    active: event.active,
+    closed: event.closed,
+    eventSlug: event.slug,
+    eventTitle: event.title,
+    url: `${POLYMARKET_BASE}/event/${event.slug}`,
+    relevanceScore: computeRelevanceScore(event.title, keywords),
+  };
+}
+
 /**
  * Search Polymarket using the /public-search endpoint for keyword relevance,
  * then supplement with trending active markets (volume-ranked, client-side filtered) if needed.
+ * Results sorted by endDate ascending (soonest-to-close first).
  */
 export async function searchMarkets(
   keywords: string[],
@@ -129,30 +146,13 @@ export async function searchMarkets(
         const activeMarkets = eventMarkets.filter(m => m.active && !m.closed);
 
         if (activeMarkets.length > 0) {
-          // For binary markets (Yes/No), pick the most liquid one
+          // Pick the most liquid active market from this event
           const best = activeMarkets.sort(
             (a, b) => parseFloat(b.liquidity || '0') - parseFloat(a.liquidity || '0')
           )[0];
           markets.push(marketFromRaw(best, event.slug, event.title, keywords));
         } else {
-          // Event-level market (multi-outcome)
-          markets.push({
-            id: event.id,
-            question: event.title,
-            slug: event.slug,
-            outcomes: [],
-            outcomePrices: [],
-            volume: parseFloat(event.volume || '0'),
-            volume24hr: parseFloat(event.volume24hr || '0'),
-            liquidity: parseFloat(event.liquidity || '0'),
-            endDate: event.endDate,
-            active: event.active,
-            closed: event.closed,
-            eventSlug: event.slug,
-            eventTitle: event.title,
-            url: `${POLYMARKET_BASE}/event/${event.slug}`,
-            relevanceScore: computeRelevanceScore(event.title, keywords),
-          });
+          markets.push(eventAsMarket(event, keywords));
         }
       }
     }
@@ -160,7 +160,7 @@ export async function searchMarkets(
     console.warn('[PolymarketRadar] Search endpoint error:', e);
   }
 
-  // Fallback: fetch trending active events and filter client-side
+  // Fallback: trending active events filtered client-side by keyword match
   if (markets.length < limit) {
     try {
       const eventsUrl =
@@ -177,7 +177,6 @@ export async function searchMarkets(
           const relevance = computeRelevanceScore(event.title, keywords);
           if (relevance === 0) continue;
 
-          // Avoid duplicates
           if (markets.some(m => m.eventSlug === event.slug)) continue;
 
           const eventMarkets = event.markets || [];
@@ -189,23 +188,7 @@ export async function searchMarkets(
             )[0];
             markets.push(marketFromRaw(best, event.slug, event.title, keywords));
           } else {
-            markets.push({
-              id: event.id,
-              question: event.title,
-              slug: event.slug,
-              outcomes: [],
-              outcomePrices: [],
-              volume: parseFloat(event.volume || '0'),
-              volume24hr: parseFloat(event.volume24hr || '0'),
-              liquidity: parseFloat(event.liquidity || '0'),
-              endDate: event.endDate,
-              active: event.active,
-              closed: event.closed,
-              eventSlug: event.slug,
-              eventTitle: event.title,
-              url: `${POLYMARKET_BASE}/event/${event.slug}`,
-              relevanceScore: relevance,
-            });
+            markets.push(eventAsMarket(event, keywords));
           }
         }
       }
@@ -214,11 +197,13 @@ export async function searchMarkets(
     }
   }
 
-  // Sort by relevance score desc, then by 24h volume desc
+  // Sort by endDate ascending (soonest to close = most urgent = shown first)
+  // Markets with no endDate go to the end
   markets.sort((a, b) => {
-    const rel = (b.relevanceScore || 0) - (a.relevanceScore || 0);
-    if (rel !== 0) return rel;
-    return b.volume24hr - a.volume24hr;
+    if (!a.endDate && !b.endDate) return 0;
+    if (!a.endDate) return 1;
+    if (!b.endDate) return -1;
+    return new Date(a.endDate).getTime() - new Date(b.endDate).getTime();
   });
 
   return markets.slice(0, limit);
