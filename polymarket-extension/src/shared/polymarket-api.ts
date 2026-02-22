@@ -101,8 +101,8 @@ function marketFromRaw(
 }
 
 /**
- * Search Polymarket using the /search endpoint for keyword relevance,
- * then supplement with trending active markets if needed.
+ * Search Polymarket using the /public-search endpoint for keyword relevance,
+ * then supplement with trending active markets (volume-ranked, client-side filtered) if needed.
  */
 export async function searchMarkets(
   keywords: string[],
@@ -113,9 +113,11 @@ export async function searchMarkets(
   const query = keywords.join(' ');
   const markets: PolymarketMarket[] = [];
 
-  // Primary: use the search endpoint
+  // Primary: /public-search (correct Polymarket keyword search endpoint)
   try {
-    const searchUrl = `${GAMMA_BASE}/search?query=${encodeURIComponent(query)}&limit=20`;
+    const searchUrl =
+      `${GAMMA_BASE}/public-search?q=${encodeURIComponent(query)}` +
+      `&keep_closed_markets=0&limit_per_type=20&search_tags=false&search_profiles=false`;
     const res = await fetch(searchUrl);
     if (res.ok) {
       const data: SearchResponse = await res.json();
@@ -163,7 +165,7 @@ export async function searchMarkets(
     try {
       const eventsUrl =
         `${GAMMA_BASE}/events?active=true&closed=false` +
-        `&limit=50&order=volume24hr&ascending=false`;
+        `&limit=50&order=volume_24hr&ascending=false`;
       const res = await fetch(eventsUrl);
       if (res.ok) {
         const events: RawEvent[] = await res.json();
