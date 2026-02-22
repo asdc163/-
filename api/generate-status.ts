@@ -1,20 +1,20 @@
 /**
- * GET /api/generate-status?jobId=xxx
+ * GET /api/generate-status?jobId=fal_xxxxxxxx
  *
- * Polls the status of a Seedance video generation job.
- * For mock jobs (jobId starts with "mock_"), progress is calculated from
- * the timestamp embedded in the jobId — no server state needed.
+ * Polls fal.ai queue for Kling 2.6 Pro generation status.
  *
- * Response: { status, progress, videoUrl?, error? }
+ * jobId formats:
+ *   fal_{request_id}  → real fal.ai job
+ *   mock_{timestamp}  → simulated job (no API key needed)
+ *
+ * fal.ai status values: IN_QUEUE | IN_PROGRESS | COMPLETED | FAILED
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Simulated generation duration for mock mode (ms)
-const MOCK_GENERATION_MS = 12_000;
-
-// Placeholder thumbnail for generated videos (mock)
-const MOCK_VIDEO_URL =
-  'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+const FAL_BASE = 'https://queue.fal.run';
+const KLING_MODEL = 'fal-ai/kling-video';
+const MOCK_DURATION_MS = 12_000;
+const MOCK_VIDEO_URL = 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -25,49 +25,81 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const jobId = req.query.jobId as string;
   if (!jobId) return res.status(400).json({ error: 'jobId is required' });
 
-  // ── Mock mode (stateless, time-based progress) ────────────────────────────
+  // ── Mock mode ─────────────────────────────────────────────────────────────
   if (jobId.startsWith('mock_')) {
     const startedAt = parseInt(jobId.replace('mock_', ''), 10);
     const elapsed = Date.now() - startedAt;
-    const progress = Math.min(100, Math.floor((elapsed / MOCK_GENERATION_MS) * 100));
-    const completed = progress >= 100;
-
+    const progress = Math.min(100, Math.floor((elapsed / MOCK_DURATION_MS) * 100));
     return res.json({
-      status: completed ? 'completed' : 'processing',
+      status: progress >= 100 ? 'completed' : 'processing',
       progress,
-      videoUrl: completed ? MOCK_VIDEO_URL : undefined,
+      videoUrl: progress >= 100 ? MOCK_VIDEO_URL : undefined,
       source: 'mock',
     });
   }
 
-  // ── Real Seedance API polling ──────────────────────────────────────────────
-  const apiKey = process.env.SEEDANCE_API_KEY;
-  const baseUrl = process.env.SEEDANCE_BASE_URL ?? 'https://api.laozhang.ai/v1';
+  // ── fal.ai queue polling ──────────────────────────────────────────────────
+  if (jobId.startsWith('fal_')) {
+    const requestId = jobId.replace('fal_', '');
+    const falKey = process.env.FAL_AI_KEY;
 
-  if (!apiKey) {
-    return res.status(503).json({ error: 'SEEDANCE_API_KEY not configured' });
-  }
+    if (!falKey) return res.status(503).json({ error: 'FAL_AI_KEY not configured' });
 
-  try {
-    const response = await fetch(`${baseUrl}/video/jobs/${encodeURIComponent(jobId)}`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
+    try {
+      // Check status first
+      const statusRes = await fetch(
+        `${FAL_BASE}/${KLING_MODEL}/requests/${requestId}/status`,
+        { headers: { Authorization: `Key ${falKey}` } }
+      );
+      if (!statusRes.ok) throw new Error(`fal.ai status ${statusRes.status}`);
+      const statusData = await statusRes.json();
 
-    if (!response.ok) {
-      throw new Error(`Seedance status API ${response.status}`);
+      const falStatus: string = statusData.status ?? 'IN_PROGRESS';
+
+      // Map fal.ai status → our progress
+      const progressMap: Record<string, number> = {
+        IN_QUEUE: 5,
+        IN_PROGRESS: 50,
+        COMPLETED: 100,
+        FAILED: 0,
+      };
+      const progress = progressMap[falStatus] ?? 50;
+
+      if (falStatus === 'FAILED') {
+        return res.json({ status: 'failed', progress: 0, error: 'Generation failed', source: 'live' });
+      }
+
+      if (falStatus !== 'COMPLETED') {
+        return res.json({ status: 'processing', progress, source: 'live' });
+      }
+
+      // Fetch the result
+      const resultRes = await fetch(
+        `${FAL_BASE}/${KLING_MODEL}/requests/${requestId}`,
+        { headers: { Authorization: `Key ${falKey}` } }
+      );
+      if (!resultRes.ok) throw new Error(`fal.ai result ${resultRes.status}`);
+      const resultData = await resultRes.json();
+
+      // fal.ai Kling result: { video: { url, content_type, file_name, file_size } }
+      const videoUrl = resultData?.video?.url
+        ?? resultData?.videos?.[0]?.url
+        ?? resultData?.output?.url;
+
+      return res.json({
+        status: 'completed',
+        progress: 100,
+        videoUrl,
+        fileSize: resultData?.video?.file_size,
+        source: 'live',
+        provider: 'kling-2.6-pro',
+      });
+
+    } catch (err: any) {
+      console.error('[generate-status] fal.ai error:', err.message);
+      return res.status(500).json({ error: err.message, status: 'error', progress: 0 });
     }
-
-    const data = await response.json();
-
-    // Normalise field names across providers
-    const status = data.status ?? 'processing';
-    const progress = data.progress ?? (status === 'completed' ? 100 : status === 'queued' ? 5 : 50);
-    const videoUrl = data.video_url ?? data.videoUrl ?? data.output_url;
-
-    return res.json({ status, progress, videoUrl, source: 'live' });
-
-  } catch (err: any) {
-    console.error('[generate-status] error:', err.message);
-    return res.status(500).json({ error: err.message, status: 'error', progress: 0 });
   }
+
+  return res.status(400).json({ error: `Unknown jobId format: ${jobId}` });
 }

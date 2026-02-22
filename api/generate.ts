@@ -1,18 +1,22 @@
 /**
  * POST /api/generate
- * Body: { prompt, resolution, duration, topicTag? }
+ * Body: { prompt, resolution, duration }
  *
- * Submits a Seedance 2.0 text-to-video generation job.
+ * Submits a Kling 2.6 Pro text-to-video job via fal.ai queue.
  * Returns { jobId, source } immediately — client polls /api/generate-status.
  *
- * API: api.laozhang.ai (OpenAI-compatible Seedance proxy)
- * Docs: https://www.aifreeapi.com/en/posts/seedance-2-api-integration-guide
+ * Model: fal-ai/kling-video/v2.6/pro/text-to-video
+ * Pricing: ~$0.07/sec (5s ≈ $0.35), $1 free credits on new account
+ * Docs: https://fal.ai/models/fal-ai/kling-video/v2.6/pro/text-to-video/api
  *
- * When Volcengine ARK launches (~2026-02-24), set:
- *   SEEDANCE_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
- *   SEEDANCE_API_KEY=ark-xxxxx
+ * When Seedance 2.0 official API launches, switch provider by setting:
+ *   VIDEO_PROVIDER=seedance
+ *   SEEDANCE_API_KEY=...
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+
+const FAL_BASE = 'https://queue.fal.run';
+const KLING_MODEL = 'fal-ai/kling-video/v2.6/pro/text-to-video';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -22,53 +26,60 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { prompt, resolution = '1080p', duration = 8 } = req.body ?? {};
+  const { prompt, resolution = '1080p', duration = 5 } = req.body ?? {};
   if (!prompt) return res.status(400).json({ error: 'prompt is required' });
 
-  const apiKey = process.env.SEEDANCE_API_KEY;
-  const baseUrl = process.env.SEEDANCE_BASE_URL ?? 'https://api.laozhang.ai/v1';
+  const falKey = process.env.FAL_AI_KEY;
   const forceMock = process.env.FORCE_MOCK === 'true';
 
-  if (apiKey && !forceMock) {
+  if (falKey && !forceMock) {
     try {
-      const response = await fetch(`${baseUrl}/video/text-to-video`, {
+      // Kling 2.6 Pro supports 5s or 10s
+      const videoDuration = Number(duration) >= 8 ? '10' : '5';
+
+      const response = await fetch(`${FAL_BASE}/${KLING_MODEL}`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Key ${falKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'seedance-2.0',
           prompt,
-          resolution,
-          duration: Number(duration),
-          aspect_ratio: '9:16', // vertical for TikTok
+          duration: videoDuration,
+          aspect_ratio: '9:16', // TikTok vertical format
+          negative_prompt: 'blur, distortion, low quality, watermark, text overlay',
+          cfg_scale: 0.5,
         }),
       });
 
       if (!response.ok) {
         const err = await response.text();
-        throw new Error(`Seedance API ${response.status}: ${err}`);
+        throw new Error(`fal.ai ${response.status}: ${err}`);
       }
 
       const data = await response.json();
-      const jobId = data.job_id ?? data.id ?? data.jobId;
+      // fal.ai returns: { request_id, status_url, response_url, ... }
+      const jobId = `fal_${data.request_id}`;
 
-      if (!jobId) throw new Error('No job_id in Seedance response');
-
-      return res.json({ jobId, source: 'live', provider: 'seedance-2.0', model: 'seedance-2.0' });
+      return res.json({
+        jobId,
+        source: 'live',
+        provider: 'kling-2.6-pro',
+        model: 'fal-ai/kling-video/v2.6/pro',
+        statusUrl: data.status_url,
+        responseUrl: data.response_url,
+      });
 
     } catch (err: any) {
-      console.error('[generate] Seedance API error:', err.message);
-      // Fall through to mock
+      console.error('[generate] fal.ai error:', err.message);
+      // fall through to mock
     }
   }
 
-  // ── Mock fallback: encode start time in jobId for stateless progress calc ──
-  const mockJobId = `mock_${Date.now()}`;
+  // ── Mock fallback: encode start time in jobId for stateless progress ──────
   return res.json({
-    jobId: mockJobId,
+    jobId: `mock_${Date.now()}`,
     source: 'mock',
-    reason: apiKey ? 'api_error' : 'no_api_key',
+    reason: falKey ? 'api_error' : 'no_fal_ai_key',
   });
 }
