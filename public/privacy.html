@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — TikTok AI Auto Poster</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           background: #0a0a0a; color: #e5e5e5; line-height: 1.7; }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 48px 24px 80px; }
+    h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+    .meta { color: #666; font-size: 0.875rem; margin-bottom: 40px; }
+    h2 { font-size: 1.1rem; font-weight: 600; color: #fff; margin: 32px 0 10px; }
+    p  { color: #aaa; margin-bottom: 12px; }
+    ul { color: #aaa; padding-left: 20px; margin-bottom: 12px; }
+    li { margin-bottom: 6px; }
+    a  { color: #fe2c55; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 0.9rem; }
+    th { text-align: left; color: #fff; padding: 8px 12px; background: #1a1a1a;
+         border-bottom: 1px solid #333; }
+    td { padding: 8px 12px; color: #aaa; border-bottom: 1px solid #222; vertical-align: top; }
+    hr { border: none; border-top: 1px solid #222; margin: 32px 0; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Privacy Policy</h1>
+  <p class="meta">Last updated: February 22, 2026</p>
+
+  <h2>1. Overview</h2>
+  <p>TikTok AI Auto Poster ("the Service") is committed to protecting your privacy. This policy explains what data we collect, how we use it, and your rights.</p>
+
+  <h2>2. Data We Collect</h2>
+  <table>
+    <tr><th>Data</th><th>Purpose</th><th>Stored?</th></tr>
+    <tr>
+      <td>TikTok <code>access_token</code></td>
+      <td>Authenticate API requests to publish videos</td>
+      <td>In your environment only (never on our servers)</td>
+    </tr>
+    <tr>
+      <td>TikTok <code>open_id</code></td>
+      <td>Identify your account for publishing</td>
+      <td>In memory during session only</td>
+    </tr>
+    <tr>
+      <td>Video generation prompts</td>
+      <td>Sent to AI video generation APIs (fal.ai / Kling)</td>
+      <td>Not stored by us</td>
+    </tr>
+    <tr>
+      <td>Published post IDs</td>
+      <td>Track analytics and avoid duplicate posts</td>
+      <td>Locally in your deployment</td>
+    </tr>
+  </table>
+
+  <h2>3. What We Do NOT Collect</h2>
+  <ul>
+    <li>We do not collect your TikTok password</li>
+    <li>We do not collect personally identifiable information (PII)</li>
+    <li>We do not sell, rent, or share any data with third parties for advertising</li>
+    <li>We do not store OAuth tokens on external servers — all credentials stay in your environment</li>
+  </ul>
+
+  <h2>4. Third-Party Services</h2>
+  <p>The Service interacts with the following third-party APIs. Their respective privacy policies apply:</p>
+  <ul>
+    <li><strong>TikTok API</strong> — <a href="https://www.tiktok.com/legal/privacy-policy" target="_blank">TikTok Privacy Policy</a></li>
+    <li><strong>fal.ai</strong> (video generation) — <a href="https://fal.ai/privacy" target="_blank">fal.ai Privacy Policy</a></li>
+    <li><strong>TikHub</strong> (trending data) — <a href="https://tikhub.io" target="_blank">TikHub Privacy Policy</a></li>
+    <li><strong>OpenAI</strong> (optional SEO) — <a href="https://openai.com/privacy" target="_blank">OpenAI Privacy Policy</a></li>
+  </ul>
+
+  <h2>5. TikTok Data Access</h2>
+  <p>The Service requests the following TikTok API scopes:</p>
+  <ul>
+    <li><code>video.publish</code> — to upload and publish videos on your behalf</li>
+    <li><code>user.info.basic</code> — to verify your account identity</li>
+  </ul>
+  <p>You can revoke this access at any time via: <strong>TikTok App → Profile → Settings → Security → Apps and Websites</strong>.</p>
+
+  <h2>6. Data Security</h2>
+  <p>All API keys and tokens are stored as environment variables in your own deployment environment (Vercel or self-hosted). We never transmit these credentials to our servers. HTTPS is enforced for all API communications.</p>
+
+  <h2>7. Data Retention</h2>
+  <p>The Service does not maintain a persistent database. Session data (such as generated video URLs and post IDs) is held in memory and cleared when the service restarts. No personal data is retained beyond the active session.</p>
+
+  <h2>8. Your Rights</h2>
+  <p>Since we do not store your personal data on any external server, there is no data to request deletion of. To remove the Service's access to your TikTok account, revoke access via TikTok's app settings.</p>
+
+  <h2>9. Children's Privacy</h2>
+  <p>The Service is not intended for users under the age of 13. We do not knowingly collect data from children.</p>
+
+  <h2>10. Changes to This Policy</h2>
+  <p>We may update this Privacy Policy periodically. Changes will be reflected by the "Last updated" date above.</p>
+
+  <h2>11. Contact</h2>
+  <p>For privacy-related questions, please open an issue in our <a href="https://github.com" target="_blank">GitHub repository</a>.</p>
+
+  <hr />
+  <p style="font-size:0.8rem; color:#444;">© 2026 TikTok AI Auto Poster. All rights reserved.</p>
+</div>
+</body>
+</html>
