@@ -243,6 +243,15 @@ var PolymarketRadar = (() => {
 
   // src/content/overlay.ts
   var OVERLAY_ID = "__polymarket_radar_root__";
+  var BG = "#0C0F1A";
+  var PANEL = "#111520";
+  var BORDER = "#232A3B";
+  var TEXT = "#E8EDF5";
+  var MUTED = "#5E6A82";
+  var TEXT2 = "#A3ADBF";
+  var YES = "#0AC18E";
+  var NO = "#E23E3E";
+  var BRAND = "#6170FF";
   var STYLES = `
   :host {
     all: initial;
@@ -251,339 +260,184 @@ var PolymarketRadar = (() => {
     top: 50%;
     transform: translateY(-50%);
     z-index: 2147483647;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
   *, *::before, *::after { box-sizing: border-box; }
 
-  .container { display: flex; flex-direction: row; align-items: stretch; }
-
-  /* Vertical tab */
+  /* \u2500\u2500 Tab trigger \u2500\u2500 */
   .tab {
     writing-mode: vertical-rl;
     text-orientation: mixed;
-    background: #0d9488;
-    color: white;
-    padding: 12px 6px;
-    border-radius: 8px 0 0 8px;
+    background: linear-gradient(180deg, ${BRAND}, ${YES});
+    color: #fff;
+    padding: 16px 7px;
+    border-radius: 10px 0 0 10px;
     cursor: pointer;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     user-select: none;
     border: none;
     outline: none;
-    transition: background 0.15s;
+    transition: opacity .15s;
+    box-shadow: -2px 0 16px rgba(0,0,0,.5);
   }
-  .tab:hover { background: #0f766e; }
-  .tab-icon { writing-mode: horizontal-tb; font-size: 14px; }
+  .tab:hover { opacity: .9; }
+  .tab-icon { writing-mode: horizontal-tb; font-size: 15px; }
+  .container { display: flex; flex-direction: row; align-items: stretch; }
 
-  /* Main panel */
+  /* \u2500\u2500 Side panel \u2500\u2500 */
   .panel {
-    background: #fff;
-    border: 1px solid #e2e8f0;
+    background: ${BG};
+    border: 1px solid ${BORDER};
     border-right: none;
-    border-radius: 8px 0 0 8px;
-    width: 300px;
-    max-height: 82vh;
-    overflow-y: auto;
-    box-shadow: -4px 0 24px rgba(0,0,0,.12);
+    border-radius: 12px 0 0 12px;
+    width: 310px;
+    max-height: 84vh;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
+    box-shadow: -6px 0 32px rgba(0,0,0,.65);
+    animation: slideIn .18s ease;
   }
   .panel.hidden { display: none; }
-  .panel::-webkit-scrollbar { width: 4px; }
-  .panel::-webkit-scrollbar-track { background: transparent; }
-  .panel::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+  @keyframes slideIn { from { opacity:0; transform:translateX(12px) } to { opacity:1; transform:none } }
 
-  /* Panel header */
+  /* \u2500\u2500 Panel header \u2500\u2500 */
   .panel-header {
-    padding: 11px 14px 9px;
-    border-bottom: 1px solid #f1f5f9;
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid ${BORDER};
     display: flex;
     align-items: center;
     justify-content: space-between;
-    position: sticky;
-    top: 0;
-    background: white;
-    z-index: 1;
-  }
-  .panel-title {
-    font-size: 13px;
-    font-weight: 700;
-    color: #0d9488;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin: 0;
-  }
-  .panel-sub {
-    font-size: 10px;
-    color: #94a3b8;
-    margin-top: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 190px;
-  }
-  .header-right { display: flex; align-items: center; gap: 7px; }
-  .wallet-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #94a3b8;
+    background: ${PANEL};
     flex-shrink: 0;
-    transition: background .2s;
   }
-  .wallet-dot.connected { background: #22c55e; }
+  .header-left { display: flex; align-items: center; gap: 9px; min-width: 0; }
+  .logo {
+    width: 28px; height: 28px; border-radius: 7px;
+    background: linear-gradient(135deg, ${BRAND}, ${YES});
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .panel-title { font-size: 13px; font-weight: 800; color: ${TEXT}; letter-spacing: -.01em; }
+  .panel-sub {
+    font-size: 10px; color: ${MUTED}; margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 185px;
+  }
   .close-btn {
-    background: none;
-    border: none;
-    color: #94a3b8;
-    cursor: pointer;
-    font-size: 15px;
-    padding: 2px 4px;
-    border-radius: 4px;
-    line-height: 1;
+    background: none; border: none; color: ${MUTED}; cursor: pointer;
+    font-size: 17px; padding: 2px 5px; line-height: 1; border-radius: 6px;
+    transition: color .15s, background .15s; flex-shrink: 0;
   }
-  .close-btn:hover { color: #64748b; background: #f1f5f9; }
+  .close-btn:hover { color: ${TEXT}; background: ${BORDER}; }
 
-  .panel-body { padding: 6px 0; flex: 1; }
+  /* \u2500\u2500 Scrollable body \u2500\u2500 */
+  .panel-body { padding: 6px 0; flex: 1; overflow-y: auto; }
+  .panel-body::-webkit-scrollbar { width: 3px; }
+  .panel-body::-webkit-scrollbar-track { background: transparent; }
+  .panel-body::-webkit-scrollbar-thumb { background: ${BORDER}; border-radius: 3px; }
 
-  /* States */
-  .loading, .empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 24px 16px;
-    color: #94a3b8;
-    font-size: 12px;
-    gap: 8px;
-    text-align: center;
+  /* \u2500\u2500 States \u2500\u2500 */
+  .state-wrap {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 28px 16px; color: ${MUTED}; font-size: 12px;
+    gap: 8px; text-align: center;
   }
+  .state-icon { font-size: 24px; }
   .spinner {
-    width: 20px;
-    height: 20px;
-    border: 2px solid #e2e8f0;
-    border-top-color: #0d9488;
+    width: 22px; height: 22px;
+    border: 2px solid ${BORDER}; border-top-color: ${BRAND};
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    animation: spin .7s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .empty-icon { font-size: 22px; }
 
-  /* Market card */
+  /* \u2500\u2500 Market card \u2500\u2500 */
   .market-card {
-    padding: 10px 14px;
-    border-bottom: 1px solid #f1f5f9;
+    padding: 11px 14px;
+    border-bottom: 1px solid ${BORDER};
+    transition: background .15s;
+    cursor: default;
   }
   .market-card:last-child { border-bottom: none; }
+  .market-card:hover { background: #1A2136; }
 
-  .market-question {
-    font-size: 12px;
-    font-weight: 600;
-    color: #1e293b;
-    line-height: 1.4;
-    margin-bottom: 7px;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+  .market-q {
+    font-size: 12px; font-weight: 600; color: ${TEXT};
+    line-height: 1.45; margin-bottom: 9px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   }
 
   /* Odds bar */
-  .odds-bar-wrap { margin-bottom: 7px; }
-  .odds-labels {
-    display: flex;
-    justify-content: space-between;
-    font-size: 10px;
-    font-weight: 700;
-    margin-bottom: 3px;
+  .odds-labels { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .yes-lbl { font-size: 11px; font-weight: 800; color: ${YES}; }
+  .no-lbl  { font-size: 11px; font-weight: 800; color: ${NO}; }
+  .odds-track {
+    height: 5px; border-radius: 3px; background: ${NO}22; overflow: hidden; margin-bottom: 9px;
   }
-  .yes-label { color: #059669; }
-  .no-label  { color: #dc2626; }
-  .odds-bar  { height: 5px; border-radius: 3px; background: #fee2e2; overflow: hidden; }
-  .odds-bar-fill { height: 100%; background: #059669; border-radius: 3px; transition: width .3s; }
+  .odds-fill { height: 100%; background: ${YES}; border-radius: 3px; transition: width .35s ease; }
 
   /* Multi-outcome chips */
-  .multi-outcomes { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 7px; }
-  .outcome-chip {
-    font-size: 10px;
-    background: #f1f5f9;
-    border-radius: 4px;
-    padding: 2px 6px;
-    color: #475569;
-    font-weight: 500;
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
+  .chip {
+    font-size: 10px; font-weight: 600; background: ${BORDER};
+    border-radius: 20px; padding: 2px 8px; color: ${TEXT2};
   }
-  .outcome-chip span { color: #0d9488; font-weight: 700; }
+  .chip-pct { color: ${YES}; font-weight: 800; margin-left: 3px; }
 
   /* Meta row */
-  .meta-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 10px;
-    color: #94a3b8;
-    gap: 4px;
-    margin-bottom: 8px;
+  .meta {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 10px; color: ${MUTED}; margin-bottom: 8px;
   }
+  .meta-sep { color: ${BORDER}; }
   .meta-link {
-    color: #0d9488;
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 10px;
+    color: ${BRAND}; text-decoration: none; font-weight: 700;
+    margin-left: auto; font-size: 10px;
   }
   .meta-link:hover { text-decoration: underline; }
 
-  /* Bet buttons */
-  .bet-row { display: flex; gap: 6px; }
-  .bet-yes, .bet-no {
-    flex: 1;
-    font-size: 11px;
-    font-weight: 700;
-    border: none;
-    border-radius: 5px;
-    padding: 6px 0;
-    cursor: pointer;
-    transition: opacity .15s;
+  /* Action buttons */
+  .btn-row { display: flex; gap: 6px; }
+  .btn-yes {
+    flex: 1; font-size: 11px; font-weight: 800;
+    background: ${YES}22; color: ${YES};
+    border: 1px solid ${YES}44; border-radius: 7px;
+    padding: 6px 0; cursor: pointer; text-align: center;
+    text-decoration: none; display: block; transition: background .15s;
   }
-  .bet-yes { background: #059669; color: white; }
-  .bet-yes:hover { opacity: .85; }
-  .bet-no  { background: #dc2626; color: white; }
-  .bet-no:hover  { opacity: .85; }
-  .bet-open {
-    flex: 1;
-    font-size: 11px;
-    font-weight: 700;
-    background: #f1f5f9;
-    color: #475569;
-    border: none;
-    border-radius: 5px;
-    padding: 6px 0;
-    cursor: pointer;
-    text-align: center;
-    text-decoration: none;
-    display: block;
+  .btn-yes:hover { background: ${YES}40; }
+  .btn-no {
+    flex: 1; font-size: 11px; font-weight: 800;
+    background: ${NO}22; color: ${NO};
+    border: 1px solid ${NO}44; border-radius: 7px;
+    padding: 6px 0; cursor: pointer; text-align: center;
+    text-decoration: none; display: block; transition: background .15s;
   }
-  .bet-open:hover { background: #e2e8f0; }
+  .btn-no:hover { background: ${NO}40; }
+  .btn-view {
+    flex: 1; font-size: 11px; font-weight: 700;
+    background: ${BRAND}22; color: ${BRAND};
+    border: 1px solid ${BRAND}44; border-radius: 7px;
+    padding: 6px 0; cursor: pointer; text-align: center;
+    text-decoration: none; display: block; transition: background .15s;
+  }
+  .btn-view:hover { background: ${BRAND}40; }
 
-  /* Panel footer */
+  /* \u2500\u2500 Footer \u2500\u2500 */
   .panel-footer {
     padding: 7px 14px;
-    border-top: 1px solid #f1f5f9;
-    font-size: 10px;
-    color: #cbd5e1;
-    text-align: center;
+    border-top: 1px solid ${BORDER};
+    font-size: 10px; color: ${MUTED};
+    text-align: center; background: ${PANEL}; flex-shrink: 0;
   }
-  .footer-link { color: #0d9488; text-decoration: none; font-weight: 600; }
+  .footer-link { color: ${BRAND}; text-decoration: none; font-weight: 700; }
   .footer-link:hover { text-decoration: underline; }
-`;
-  var MODAL_STYLES = `
-  #__pm_bet_modal__ {
-    position: fixed; inset: 0; z-index: 2147483648;
-    background: rgba(0,0,0,.45);
-    display: flex; align-items: center; justify-content: center;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  }
-  #__pm_bet_modal__ .modal {
-    background: white; border-radius: 14px; padding: 22px 20px;
-    width: 330px; max-width: calc(100vw - 32px);
-    box-shadow: 0 20px 60px rgba(0,0,0,.28);
-    animation: pm-slide-up .18s ease;
-  }
-  @keyframes pm-slide-up {
-    from { opacity:0; transform: translateY(16px); }
-    to   { opacity:1; transform: translateY(0); }
-  }
-  #__pm_bet_modal__ .modal-title {
-    font-size: 15px; font-weight: 700; color: #1e293b; margin: 0 0 4px;
-  }
-  #__pm_bet_modal__ .modal-question {
-    font-size: 12px; color: #64748b; margin-bottom: 14px;
-    display: -webkit-box; -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical; overflow: hidden;
-  }
-  #__pm_bet_modal__ .outcome-badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    font-size: 12px; font-weight: 700;
-    padding: 4px 11px; border-radius: 20px; margin-bottom: 16px;
-  }
-  #__pm_bet_modal__ .outcome-badge.yes { background:#dcfce7; color:#166534; }
-  #__pm_bet_modal__ .outcome-badge.no  { background:#fee2e2; color:#991b1b; }
-
-  #__pm_bet_modal__ .field-label {
-    font-size: 11px; color: #94a3b8; font-weight: 600;
-    text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px;
-  }
-  #__pm_bet_modal__ .input-wrap {
-    position: relative; margin-bottom: 14px;
-  }
-  #__pm_bet_modal__ .input-prefix {
-    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
-    font-size: 13px; color: #64748b; font-weight: 600; pointer-events: none;
-  }
-  #__pm_bet_modal__ .amount-input {
-    width: 100%; padding: 9px 10px 9px 22px;
-    border: 1.5px solid #e2e8f0; border-radius: 7px;
-    font-size: 15px; color: #1e293b; outline: none; font-weight: 700;
-  }
-  #__pm_bet_modal__ .amount-input:focus { border-color: #0d9488; }
-  #__pm_bet_modal__ .amount-input:disabled { opacity: .6; }
-
-  #__pm_bet_modal__ .summary {
-    background: #f8fafc; border-radius: 8px; padding: 10px 12px;
-    margin-bottom: 14px; font-size: 11px; color: #64748b;
-  }
-  #__pm_bet_modal__ .summary-row {
-    display: flex; justify-content: space-between; margin-bottom: 5px;
-  }
-  #__pm_bet_modal__ .summary-row:last-child { margin-bottom: 0; }
-  #__pm_bet_modal__ .summary-val { font-weight: 700; color: #1e293b; }
-  #__pm_bet_modal__ .summary-val.green { color: #059669; }
-
-  #__pm_bet_modal__ .note {
-    font-size: 10px; color: #94a3b8; margin-bottom: 14px; text-align: center;
-  }
-  #__pm_bet_modal__ .note a { color: #0d9488; text-decoration: none; }
-  #__pm_bet_modal__ .note a:hover { text-decoration: underline; }
-
-  #__pm_bet_modal__ .actions { display: flex; gap: 8px; }
-  #__pm_bet_modal__ .btn-cancel {
-    flex: 1; padding: 9px; border: 1.5px solid #e2e8f0; background: white;
-    border-radius: 7px; font-size: 12px; font-weight: 600; color: #64748b;
-    cursor: pointer;
-  }
-  #__pm_bet_modal__ .btn-cancel:hover { background: #f8fafc; }
-  #__pm_bet_modal__ .btn-confirm {
-    flex: 2; padding: 9px; border: none; border-radius: 7px;
-    font-size: 13px; font-weight: 700; color: white; cursor: pointer;
-    transition: opacity .15s;
-  }
-  #__pm_bet_modal__ .btn-confirm.yes { background: #059669; }
-  #__pm_bet_modal__ .btn-confirm.no  { background: #dc2626; }
-  #__pm_bet_modal__ .btn-confirm:hover:not(:disabled) { opacity: .85; }
-  #__pm_bet_modal__ .btn-confirm:disabled { opacity: .5; cursor: not-allowed; }
-
-  #__pm_bet_modal__ .btn-connect {
-    width: 100%; padding: 10px; background: #0d9488; color: white;
-    border: none; border-radius: 7px; font-size: 13px; font-weight: 700;
-    cursor: pointer; transition: background .15s; margin-top: 4px;
-  }
-  #__pm_bet_modal__ .btn-connect:hover:not(:disabled) { background: #0f766e; }
-  #__pm_bet_modal__ .btn-connect:disabled { opacity: .6; cursor: not-allowed; }
-
-  #__pm_bet_modal__ .connect-desc {
-    font-size: 12px; color: #64748b; margin-bottom: 14px; text-align: center;
-  }
-
-  #__pm_bet_modal__ .alert {
-    font-size: 11px; border-radius: 7px; padding: 8px 11px;
-    margin-bottom: 12px; word-break: break-word; line-height: 1.5;
-  }
-  #__pm_bet_modal__ .alert-error { background: #fef2f2; color: #dc2626; }
-  #__pm_bet_modal__ .alert-success { background: #dcfce7; color: #166534; text-align:center; }
 `;
   function esc(s) {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -593,92 +447,70 @@ var PolymarketRadar = (() => {
     if (v >= 1e3) return `$${(v / 1e3).toFixed(0)}K`;
     return `$${v.toFixed(0)}`;
   }
-  function fmtTimeLeft(endDate) {
+  function fmtTime(endDate) {
     if (!endDate) return "";
-    const diff = new Date(endDate).getTime() - Date.now();
-    if (diff <= 0) return "Ended";
-    const d = Math.floor(diff / 864e5);
+    const ms = new Date(endDate).getTime() - Date.now();
+    if (ms <= 0) return "Ended";
+    const d = Math.floor(ms / 864e5);
     if (d > 60) return `${Math.floor(d / 30)}mo`;
     if (d > 0) return `${d}d`;
-    const h = Math.floor(diff / 36e5);
+    const h = Math.floor(ms / 36e5);
     return h > 0 ? `${h}h` : "<1h";
-  }
-  function canBetInline(m) {
-    return m.outcomes.length === 2 && m.outcomes[0]?.toLowerCase() === "yes" && Array.isArray(m.clobTokenIds) && m.clobTokenIds.length >= 2 && !!m.clobTokenIds[0] && !!m.clobTokenIds[1];
   }
   function renderCard(m, idx) {
     const binary = m.outcomes.length === 2 && m.outcomes[0]?.toLowerCase() === "yes";
-    const timeLeft = fmtTimeLeft(m.endDate);
     const vol = fmtVol(m.volume24hr || m.volume);
+    const time = fmtTime(m.endDate);
+    const yPct = Math.round((m.outcomePrices[0] ?? 0.5) * 100);
+    const nPct = 100 - yPct;
     let oddsHtml = "";
     if (binary) {
-      const yes = Math.round((m.outcomePrices[0] ?? 0.5) * 100);
       oddsHtml = `
-      <div class="odds-bar-wrap">
-        <div class="odds-labels">
-          <span class="yes-label">YES ${yes}%</span>
-          <span class="no-label">NO ${100 - yes}%</span>
-        </div>
-        <div class="odds-bar">
-          <div class="odds-bar-fill" style="width:${yes}%"></div>
-        </div>
-      </div>`;
-    } else if (m.outcomes.length > 2) {
-      const chips = m.outcomes.slice(0, 4).map((o, i) => {
-        const pct = m.outcomePrices[i] != null ? `<span>${Math.round(m.outcomePrices[i] * 100)}%</span>` : "";
-        return `<span class="outcome-chip">${esc(o)} ${pct}</span>`;
-      }).join("");
-      oddsHtml = `<div class="multi-outcomes">${chips}</div>`;
+      <div class="odds-labels">
+        <span class="yes-lbl">YES ${yPct}%</span>
+        <span class="no-lbl">NO ${nPct}%</span>
+      </div>
+      <div class="odds-track"><div class="odds-fill" style="width:${yPct}%"></div></div>`;
+    } else {
+      const chips = m.outcomes.slice(0, 4).map(
+        (o, i) => `<span class="chip">${esc(o)}${m.outcomePrices[i] != null ? `<span class="chip-pct">${Math.round(m.outcomePrices[i] * 100)}%</span>` : ""}</span>`
+      ).join("");
+      oddsHtml = `<div class="chips">${chips}</div>`;
     }
-    const bettable = canBetInline(m);
-    const betHtml = bettable ? `<div class="bet-row">
-        <button class="bet-yes" data-idx="${idx}" data-outcome="Yes">
-          Bet YES \u2191
-        </button>
-        <button class="bet-no" data-idx="${idx}" data-outcome="No">
-          Bet NO \u2193
-        </button>
-       </div>` : `<div class="bet-row">
-        <a class="bet-open" href="${esc(m.url)}" target="_blank" rel="noopener">
-          Open on Polymarket \u2197
+    const actionsHtml = binary ? `<div class="btn-row">
+        <a class="btn-yes" href="${esc(m.url)}" target="_blank" rel="noopener"
+           data-idx="${idx}" data-outcome="Yes">YES ${yPct}%</a>
+        <a class="btn-no"  href="${esc(m.url)}" target="_blank" rel="noopener"
+           data-idx="${idx}" data-outcome="No">NO ${nPct}%</a>
+       </div>` : `<div class="btn-row">
+        <a class="btn-view" href="${esc(m.url)}" target="_blank" rel="noopener">
+          Trade on Polymarket \u2197
         </a>
        </div>`;
     return `
-    <div class="market-card" data-market-idx="${idx}">
-      <div class="market-question">${esc(m.question)}</div>
+    <div class="market-card">
+      <div class="market-q">${esc(m.question)}</div>
       ${oddsHtml}
-      <div class="meta-row">
-        <span>\u{1F4CA} ${vol}/24h</span>
-        ${timeLeft ? `<span>\u23F1 ${timeLeft}</span>` : ""}
+      <div class="meta">
+        <span>\u{1F4CA} ${vol}</span>
+        ${time ? `<span class="meta-sep">\xB7</span><span>\u23F1 ${time}</span>` : ""}
         <a class="meta-link" href="${esc(m.url)}" target="_blank" rel="noopener">View \u2197</a>
       </div>
-      ${betHtml}
+      ${actionsHtml}
     </div>`;
   }
   var PolymarketOverlay = class {
     constructor() {
       this.isOpen = false;
       this.markets = [];
-      this.walletConnected = false;
-      /** Called when user confirms a bet in the modal. Injected by content/index.ts */
-      this.onBet = async () => {
-      };
-      /** Called when user clicks "Connect MetaMask" in the modal. Injected by content/index.ts */
-      this.onConnect = async () => {
+      /** Called when user clicks a YES/NO button. Default: opens market URL. */
+      this.onBet = async (market) => {
+        window.open(market.url, "_blank");
       };
       this.host = document.createElement("div");
       this.host.id = OVERLAY_ID;
       this.shadow = this.host.attachShadow({ mode: "closed" });
-      this.injectModalStyles();
       this.render();
-    }
-    // Inject modal CSS into the main document (modal lives outside shadow DOM)
-    injectModalStyles() {
-      if (document.getElementById("__pm_modal_styles__")) return;
-      const style = document.createElement("style");
-      style.id = "__pm_modal_styles__";
-      style.textContent = MODAL_STYLES;
-      document.head.appendChild(style);
     }
     render() {
       this.shadow.innerHTML = `
@@ -686,46 +518,46 @@ var PolymarketRadar = (() => {
       <div class="container">
         <div class="panel hidden" id="panel">
           <div class="panel-header">
-            <div style="min-width:0">
-              <div class="panel-title">\u{1F3AF} Polymarket Radar</div>
-              <div class="panel-sub" id="sub">Detecting topics\u2026</div>
+            <div class="header-left">
+              <div class="logo">\u{1F3AF}</div>
+              <div>
+                <div class="panel-title">Polymarket Radar</div>
+                <div class="panel-sub" id="sub">Detecting topics\u2026</div>
+              </div>
             </div>
-            <div class="header-right">
-              <div class="wallet-dot" id="wallet-dot" title="Wallet not connected"></div>
-              <button class="close-btn" id="close-btn">\u2715</button>
-            </div>
+            <button class="close-btn" id="close-btn" title="Close">\u2715</button>
           </div>
           <div class="panel-body" id="panel-body">
-            <div class="loading">
+            <div class="state-wrap">
               <div class="spinner"></div>
               <span>Scanning markets\u2026</span>
             </div>
           </div>
           <div class="panel-footer">
-            Powered by
-            <a class="footer-link" href="https://polymarket.com" target="_blank">Polymarket</a>
+            Quick-order via the extension popup \xB7
+            <a class="footer-link" href="https://polymarket.com" target="_blank">polymarket.com</a>
           </div>
         </div>
-        <button class="tab" id="tab-btn" title="Polymarket Radar">
-          <span class="tab-icon">\u{1F3AF}</span>POLYMARKET
+        <button class="tab" id="tab-btn" title="Polymarket Radar \u2014 relevant prediction markets">
+          <span class="tab-icon">\u{1F3AF}</span>MARKETS
         </button>
       </div>`;
       this.panelEl = this.shadow.getElementById("panel");
       this.bodyEl = this.shadow.getElementById("panel-body");
       this.subEl = this.shadow.getElementById("sub");
-      this.walletDotEl = this.shadow.getElementById("wallet-dot");
       this.shadow.getElementById("tab-btn").addEventListener("click", () => this.togglePanel());
       this.shadow.getElementById("close-btn").addEventListener("click", () => this.closePanel());
       this.bodyEl.addEventListener("click", (e) => {
-        const btn = e.target.closest("[data-outcome]");
-        if (!btn) return;
-        const idx = parseInt(btn.dataset.idx ?? "-1");
-        const outcome = btn.dataset.outcome;
+        const el = e.target.closest("[data-outcome]");
+        if (!el) return;
+        e.preventDefault();
+        const idx = parseInt(el.dataset.idx ?? "-1");
+        const outcome = el.dataset.outcome;
         const market = this.markets[idx];
-        if (market) this.openBetModal(market, outcome);
+        if (market) this.onBet(market, outcome).catch(console.error);
       });
     }
-    // ── Public API ──────────────────────────────────────────────────────────
+    // ── Public API ──────────────────────────────────────────────────────────────
     mount() {
       if (document.getElementById(OVERLAY_ID)) return;
       document.body.appendChild(this.host);
@@ -733,12 +565,8 @@ var PolymarketRadar = (() => {
     unmount() {
       this.host.remove();
     }
-    setWalletConnected(connected) {
-      this.walletConnected = connected;
-      if (this.walletDotEl) {
-        this.walletDotEl.className = `wallet-dot${connected ? " connected" : ""}`;
-        this.walletDotEl.title = connected ? "Wallet connected" : "Wallet not connected \u2014 click Bet to connect";
-      }
+    /** No-op — kept for backward compat with content/index.ts */
+    setWalletConnected(_) {
     }
     togglePanel() {
       this.isOpen ? this.closePanel() : this.openPanel();
@@ -752,11 +580,9 @@ var PolymarketRadar = (() => {
       this.isOpen = false;
     }
     setLoading(keywords = []) {
-      if (keywords.length > 0) {
-        this.subEl.textContent = `Searching: ${keywords.slice(0, 4).join(", ")}`;
-      }
+      if (keywords.length) this.subEl.textContent = `Searching: ${keywords.slice(0, 4).join(", ")}`;
       this.bodyEl.innerHTML = `
-      <div class="loading">
+      <div class="state-wrap">
         <div class="spinner"></div>
         <span>Searching markets\u2026</span>
       </div>`;
@@ -764,12 +590,12 @@ var PolymarketRadar = (() => {
     }
     setMarkets(markets, keywords) {
       this.markets = markets;
-      this.subEl.textContent = keywords.length > 0 ? `Topics: ${keywords.slice(0, 4).join(", ")}` : "No topics detected";
+      this.subEl.textContent = keywords.length ? `Topics: ${keywords.slice(0, 4).join(", ")}` : "No topics detected";
       if (markets.length === 0) {
         this.bodyEl.innerHTML = `
-        <div class="empty">
-          <div class="empty-icon">\u{1F50D}</div>
-          <div>No active markets found for current content</div>
+        <div class="state-wrap">
+          <span class="state-icon">\u{1F50D}</span>
+          <span>No active markets for current content</span>
         </div>`;
         return;
       }
@@ -778,143 +604,10 @@ var PolymarketRadar = (() => {
     }
     setError(msg) {
       this.bodyEl.innerHTML = `
-      <div class="empty">
-        <div class="empty-icon">\u26A0\uFE0F</div>
-        <div>${esc(msg)}</div>
+      <div class="state-wrap">
+        <span class="state-icon">\u26A0\uFE0F</span>
+        <span>${esc(msg)}</span>
       </div>`;
-    }
-    // ── Bet modal ───────────────────────────────────────────────────────────
-    openBetModal(market, outcome) {
-      document.getElementById("__pm_bet_modal__")?.remove();
-      const wrap = document.createElement("div");
-      wrap.id = "__pm_bet_modal__";
-      document.body.appendChild(wrap);
-      wrap.addEventListener("click", (e) => {
-        if (e.target === wrap) wrap.remove();
-      });
-      const render = (state) => {
-        const outcomeIdx = outcome === "Yes" ? 0 : 1;
-        const price = market.outcomePrices[outcomeIdx] ?? 0.5;
-        const pct = Math.round(price * 100);
-        const parsedAmt = parseFloat(state.amount) || 0;
-        const shares = parsedAmt > 0 ? (parsedAmt / price).toFixed(2) : "\u2014";
-        const maxPayout = parsedAmt > 0 ? (parsedAmt / price).toFixed(2) : "\u2014";
-        const profit = parsedAmt > 0 ? (parsedAmt / price - parsedAmt).toFixed(2) : "\u2014";
-        wrap.innerHTML = `
-        <div class="modal">
-          <div class="modal-title">Place Bet on Polymarket</div>
-          <div class="modal-question">${esc(market.question)}</div>
-
-          <span class="outcome-badge ${outcome.toLowerCase()}">
-            ${outcome === "Yes" ? "\u{1F7E2}" : "\u{1F534}"} ${outcome} \xB7 ${pct}\xA2
-          </span>
-
-          ${state.error ? `<div class="alert alert-error">\u26A0\uFE0F ${esc(state.error)}</div>` : ""}
-
-          ${state.success ? `<div class="alert alert-success">\u2705 ${state.success}</div>
-               <div class="actions" style="margin-top:4px">
-                 <button class="btn-cancel" id="pm-close">Close</button>
-                 <a class="btn-confirm yes" href="${esc(market.url)}" target="_blank"
-                    rel="noopener" style="text-align:center;text-decoration:none;
-                    padding:9px;display:block;border-radius:7px">
-                   View on Polymarket \u2197
-                 </a>
-               </div>` : !this.walletConnected ? `<div class="connect-desc">
-                   Connect your MetaMask wallet (Polygon network) to bet directly
-                   from this extension.
-                 </div>
-                 <button class="btn-connect" id="pm-connect"
-                   ${state.loading ? "disabled" : ""}>
-                   ${state.loading ? "\u23F3 Connecting\u2026" : "\u{1F98A} Connect MetaMask"}
-                 </button>
-                 <div class="note" style="margin-top:10px">
-                   No MetaMask?
-                   <a href="https://metamask.io" target="_blank">Install here \u2197</a>
-                 </div>` : `<div class="field-label">Amount (USDC)</div>
-                 <div class="input-wrap">
-                   <span class="input-prefix">$</span>
-                   <input class="amount-input" id="pm-amount" type="number"
-                     min="1" step="0.1" value="${esc(state.amount)}"
-                     placeholder="10.00" ${state.loading ? "disabled" : ""} />
-                 </div>
-                 <div class="summary">
-                   <div class="summary-row">
-                     <span>Price per share</span>
-                     <span class="summary-val">$${price.toFixed(3)}</span>
-                   </div>
-                   <div class="summary-row">
-                     <span>Shares received</span>
-                     <span class="summary-val">${shares}</span>
-                   </div>
-                   <div class="summary-row">
-                     <span>Max payout</span>
-                     <span class="summary-val green">$${maxPayout}</span>
-                   </div>
-                   <div class="summary-row">
-                     <span>Potential profit</span>
-                     <span class="summary-val green">+$${profit}</span>
-                   </div>
-                 </div>
-                 <div class="note">
-                   Requires USDC balance on Polymarket.
-                   <a href="https://polymarket.com/profile" target="_blank">Deposit \u2197</a>
-                 </div>
-                 <div class="actions">
-                   <button class="btn-cancel" id="pm-cancel">Cancel</button>
-                   <button class="btn-confirm ${outcome.toLowerCase()}" id="pm-confirm"
-                     ${state.loading ? "disabled" : ""}>
-                     ${state.loading ? "\u23F3 Signing order\u2026" : `Confirm \u2014 Bet ${outcome === "Yes" ? "\u2705" : "\u274C"}`}
-                   </button>
-                 </div>`}
-        </div>`;
-        wrap.addEventListener("click", (e) => {
-          if (e.target === wrap) wrap.remove();
-        }, { once: true });
-        document.getElementById("pm-close")?.addEventListener("click", () => wrap.remove());
-        document.getElementById("pm-cancel")?.addEventListener("click", () => wrap.remove());
-        document.getElementById("pm-connect")?.addEventListener("click", async () => {
-          render({ ...state, loading: true, error: null });
-          try {
-            await this.onConnect();
-            render({ ...state, loading: false, error: null });
-          } catch (err) {
-            render({
-              ...state,
-              loading: false,
-              error: err.message ?? "Connection failed"
-            });
-          }
-        });
-        const amountInput = document.getElementById("pm-amount");
-        amountInput?.addEventListener("input", () => {
-          render({ ...state, amount: amountInput.value, error: null });
-        });
-        document.getElementById("pm-confirm")?.addEventListener("click", async () => {
-          const input = document.getElementById("pm-amount");
-          const amt = parseFloat(input?.value ?? "0");
-          if (!amt || amt < 1) {
-            render({ ...state, error: "Minimum bet is $1 USDC" });
-            return;
-          }
-          render({ ...state, loading: true, error: null, amount: String(amt) });
-          try {
-            await this.onBet(market, outcome, amt);
-            render({
-              ...state,
-              loading: false,
-              error: null,
-              success: `Order placed! Bet $${amt} on ${outcome}.`
-            });
-          } catch (err) {
-            render({
-              ...state,
-              loading: false,
-              error: err.message ?? "Order failed"
-            });
-          }
-        });
-      };
-      render({ loading: false, error: null, success: null, amount: "10" });
     }
   };
 

@@ -102,7 +102,7 @@ writeFileSync(
     <title>Polymarket Radar</title>
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { width: 360px; min-height: 200px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; }
+      body { width: 400px; min-height: 200px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0C0F1A; }
     </style>
   </head>
   <body>

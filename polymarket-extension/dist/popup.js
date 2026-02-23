@@ -53,7 +53,7 @@ var PolymarketPopup = (() => {
       }, enqueueReplaceState: function() {
       }, enqueueSetState: function() {
       } };
-      var C = Object.assign;
+      var C2 = Object.assign;
       var D = {};
       function E(a, b, e) {
         this.props = a;
@@ -80,7 +80,7 @@ var PolymarketPopup = (() => {
       }
       var H = G.prototype = new F();
       H.constructor = G;
-      C(H, E.prototype);
+      C2(H, E.prototype);
       H.isPureReactComponent = true;
       var I = Array.isArray;
       var J = Object.prototype.hasOwnProperty;
@@ -201,7 +201,7 @@ var PolymarketPopup = (() => {
       exports.act = X;
       exports.cloneElement = function(a, b, e) {
         if (null === a || void 0 === a) throw Error("React.cloneElement(...): The argument must be a React element, but you passed " + a + ".");
-        var d = C({}, a.props), c = a.key, k = a.ref, h = a._owner;
+        var d = C2({}, a.props), c = a.key, k = a.ref, h = a._owner;
         if (null != b) {
           void 0 !== b.ref && (k = b.ref, h = K.current);
           void 0 !== b.key && (c = "" + b.key);
@@ -333,8 +333,8 @@ var PolymarketPopup = (() => {
         if (c !== b) {
           a[0] = c;
           a: for (var d = 0, e = a.length, w = e >>> 1; d < w; ) {
-            var m = 2 * (d + 1) - 1, C = a[m], n = m + 1, x = a[n];
-            if (0 > g(C, c)) n < e && 0 > g(x, C) ? (a[d] = x, a[n] = c, d = n) : (a[d] = C, a[m] = c, d = m);
+            var m = 2 * (d + 1) - 1, C2 = a[m], n = m + 1, x = a[n];
+            if (0 > g(C2, c)) n < e && 0 > g(x, C2) ? (a[d] = x, a[n] = c, d = n) : (a[d] = C2, a[m] = c, d = m);
             else if (n < e && 0 > g(x, c)) a[d] = x, a[n] = c, d = n;
             else break a;
           }
@@ -1599,7 +1599,7 @@ var PolymarketPopup = (() => {
           c &= ~e;
         }
       }
-      var C = 0;
+      var C2 = 0;
       function Dc(a) {
         a &= -a;
         return 1 < a ? 4 < a ? 0 !== (a & 268435455) ? 16 : 536870912 : 4 : 1;
@@ -1737,21 +1737,21 @@ var PolymarketPopup = (() => {
       var cd = ua.ReactCurrentBatchConfig;
       var dd = true;
       function ed(a, b, c, d) {
-        var e = C, f = cd.transition;
+        var e = C2, f = cd.transition;
         cd.transition = null;
         try {
-          C = 1, fd(a, b, c, d);
+          C2 = 1, fd(a, b, c, d);
         } finally {
-          C = e, cd.transition = f;
+          C2 = e, cd.transition = f;
         }
       }
       function gd(a, b, c, d) {
-        var e = C, f = cd.transition;
+        var e = C2, f = cd.transition;
         cd.transition = null;
         try {
-          C = 4, fd(a, b, c, d);
+          C2 = 4, fd(a, b, c, d);
         } finally {
-          C = e, cd.transition = f;
+          C2 = e, cd.transition = f;
         }
       }
       function fd(a, b, c, d) {
@@ -2824,10 +2824,10 @@ var PolymarketPopup = (() => {
       function jg() {
         if (!gg && null !== eg) {
           gg = true;
-          var a = 0, b = C;
+          var a = 0, b = C2;
           try {
             var c = eg;
-            for (C = 1; a < c.length; a++) {
+            for (C2 = 1; a < c.length; a++) {
               var d = c[a];
               do
                 d = d(true);
@@ -2838,7 +2838,7 @@ var PolymarketPopup = (() => {
           } catch (e) {
             throw null !== eg && (eg = eg.slice(a + 1)), ac(fc, jg), e;
           } finally {
-            C = b, gg = false;
+            C2 = b, gg = false;
           }
         }
         return null;
@@ -3800,15 +3800,15 @@ var PolymarketPopup = (() => {
         return b;
       }
       function vi(a, b) {
-        var c = C;
-        C = 0 !== c && 4 > c ? c : 4;
+        var c = C2;
+        C2 = 0 !== c && 4 > c ? c : 4;
         a(true);
         var d = Gh.transition;
         Gh.transition = {};
         try {
           a(false), b();
         } finally {
-          C = c, Gh.transition = d;
+          C2 = c, Gh.transition = d;
         }
       }
       function wi() {
@@ -5799,7 +5799,7 @@ var PolymarketPopup = (() => {
         if (0 === (a.mode & 1)) return 1;
         if (0 !== (K & 2) && 0 !== Z) return Z & -Z;
         if (null !== Kg.transition) return 0 === Bk && (Bk = yc()), Bk;
-        a = C;
+        a = C2;
         if (0 !== a) return a;
         a = window.event;
         a = void 0 === a ? 16 : jd(a.type);
@@ -6013,11 +6013,11 @@ var PolymarketPopup = (() => {
         null !== wk && 0 === wk.tag && 0 === (K & 6) && Hk();
         var b = K;
         K |= 1;
-        var c = ok.transition, d = C;
+        var c = ok.transition, d = C2;
         try {
-          if (ok.transition = null, C = 1, a) return a();
+          if (ok.transition = null, C2 = 1, a) return a();
         } finally {
-          C = d, ok.transition = c, K = b, 0 === (K & 6) && jg();
+          C2 = d, ok.transition = c, K = b, 0 === (K & 6) && jg();
         }
       }
       function Hj() {
@@ -6265,11 +6265,11 @@ var PolymarketPopup = (() => {
         0 === T && (T = 5);
       }
       function Pk(a, b, c) {
-        var d = C, e = ok.transition;
+        var d = C2, e = ok.transition;
         try {
-          ok.transition = null, C = 1, Wk(a, b, c, d);
+          ok.transition = null, C2 = 1, Wk(a, b, c, d);
         } finally {
-          ok.transition = e, C = d;
+          ok.transition = e, C2 = d;
         }
         return null;
       }
@@ -6297,8 +6297,8 @@ var PolymarketPopup = (() => {
         if (0 !== (c.subtreeFlags & 15990) || f) {
           f = ok.transition;
           ok.transition = null;
-          var g = C;
-          C = 1;
+          var g = C2;
+          C2 = 1;
           var h = K;
           K |= 4;
           nk.current = null;
@@ -6311,7 +6311,7 @@ var PolymarketPopup = (() => {
           hk(c, a, e);
           dc();
           K = h;
-          C = g;
+          C2 = g;
           ok.transition = f;
         } else a.current = c;
         vk && (vk = false, wk = a, xk = e);
@@ -6329,10 +6329,10 @@ var PolymarketPopup = (() => {
       }
       function Hk() {
         if (null !== wk) {
-          var a = Dc(xk), b = ok.transition, c = C;
+          var a = Dc(xk), b = ok.transition, c = C2;
           try {
             ok.transition = null;
-            C = 16 > a ? 16 : a;
+            C2 = 16 > a ? 16 : a;
             if (null === wk) var d = false;
             else {
               a = wk;
@@ -6448,7 +6448,7 @@ var PolymarketPopup = (() => {
             }
             return d;
           } finally {
-            C = c, ok.transition = b;
+            C2 = c, ok.transition = b;
           }
         }
         return false;
@@ -7063,14 +7063,14 @@ var PolymarketPopup = (() => {
         }
       };
       Hc = function() {
-        return C;
+        return C2;
       };
       Ic = function(a, b) {
-        var c = C;
+        var c = C2;
         try {
-          return C = a, b();
+          return C2 = a, b();
         } finally {
-          C = c;
+          C2 = c;
         }
       };
       yb = function(a, b, c) {
@@ -7308,6 +7308,28 @@ var PolymarketPopup = (() => {
 
   // src/popup/App.tsx
   var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
+  var C = {
+    bg: "#0C0F1A",
+    panel: "#111520",
+    card: "#141928",
+    cardHover: "#1A2136",
+    border: "#232A3B",
+    borderLight: "#2E3650",
+    text: "#E8EDF5",
+    textMid: "#A3ADBF",
+    muted: "#5E6A82",
+    yes: "#0AC18E",
+    yesDim: "#0AC18E22",
+    no: "#E23E3E",
+    noDim: "#E23E3E22",
+    brand: "#6170FF",
+    brandDim: "#6170FF22",
+    amber: "#F59E0B",
+    amberDim: "#F59E0B22",
+    green: "#22C55E",
+    red: "#EF4444"
+  };
+  var FONT = `Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
   function fmtVol(v) {
     if (v >= 1e6) return `$${(v / 1e6).toFixed(1)}M`;
     if (v >= 1e3) return `$${(v / 1e3).toFixed(0)}K`;
@@ -7315,72 +7337,138 @@ var PolymarketPopup = (() => {
   }
   function fmtTimeLeft(endDate) {
     if (!endDate) return "";
-    const diff = new Date(endDate).getTime() - Date.now();
-    if (diff <= 0) return "Ended";
-    const d = Math.floor(diff / 864e5);
+    const ms = new Date(endDate).getTime() - Date.now();
+    if (ms <= 0) return "Ended";
+    const d = Math.floor(ms / 864e5);
     if (d > 60) return `${Math.floor(d / 30)}mo`;
     if (d > 0) return `${d}d`;
-    const h = Math.floor(diff / 36e5);
+    const h = Math.floor(ms / 36e5);
     return h > 0 ? `${h}h` : "<1h";
   }
-  function shortAddr(addr) {
-    return `${addr.slice(0, 6)}\u2026${addr.slice(-4)}`;
+  function shortAddr(a) {
+    return `${a.slice(0, 6)}\u2026${a.slice(-4)}`;
   }
+  function keywordsFromTitle(title) {
+    const STOP = /* @__PURE__ */ new Set([
+      "the",
+      "and",
+      "for",
+      "with",
+      "from",
+      "that",
+      "this",
+      "are",
+      "was",
+      "will",
+      "video",
+      "watch",
+      "twitter",
+      "youtube",
+      "home",
+      "trending",
+      "explore",
+      "page",
+      "new",
+      "top"
+    ]);
+    return title.replace(/[|–\-—]/g, " ").replace(/\(.*?\)/g, "").replace(/[^a-zA-Z0-9 ]/g, " ").toLowerCase().split(/\s+/).filter((w) => w.length > 3 && !STOP.has(w)).slice(0, 4).join(" ");
+  }
+  var chip = (active, color = C.brand) => ({
+    padding: "5px 12px",
+    fontSize: 11,
+    fontWeight: 700,
+    borderRadius: 20,
+    border: `1px solid ${active ? color : C.border}`,
+    background: active ? color + "25" : "transparent",
+    color: active ? color : C.textMid,
+    cursor: "pointer",
+    transition: "all .15s"
+  });
+  var btn = (bg, full = false) => ({
+    width: full ? "100%" : void 0,
+    padding: "9px 16px",
+    fontSize: 13,
+    fontWeight: 700,
+    borderRadius: 8,
+    border: "none",
+    background: bg,
+    color: "#fff",
+    cursor: "pointer",
+    transition: "opacity .15s"
+  });
   function OddsBar({ outcomes, prices }) {
     const binary = outcomes.length === 2 && outcomes[0]?.toLowerCase() === "yes";
     if (binary) {
-      const yes = Math.round((prices[0] ?? 0.5) * 100);
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { marginBottom: 6 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 700, marginBottom: 3 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { color: "#059669" }, children: [
+      const y = Math.round((prices[0] ?? 0.5) * 100);
+      const n = 100 - y;
+      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { marginBottom: 10 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 5 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 13, fontWeight: 800, color: C.yes }, children: [
             "YES ",
-            yes,
-            "\xA2"
+            y,
+            "%"
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { color: "#dc2626" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 13, fontWeight: 800, color: C.no }, children: [
             "NO ",
-            100 - yes,
-            "\xA2"
+            n,
+            "%"
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: 4, background: "#fee2e2", borderRadius: 3, overflow: "hidden" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: `${yes}%`, height: "100%", background: "#059669", borderRadius: 3 } }) })
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: 5, borderRadius: 4, background: C.noDim, overflow: "hidden" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
+          width: `${y}%`,
+          height: "100%",
+          background: C.yes,
+          borderRadius: 4,
+          transition: "width .4s ease"
+        } }) })
       ] });
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }, children: outcomes.slice(0, 4).map((o, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, background: "#f1f5f9", borderRadius: 4, padding: "2px 6px", color: "#475569", fontWeight: 500 }, children: [
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }, children: outcomes.slice(0, 4).map((o, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: {
+      fontSize: 11,
+      background: C.border,
+      borderRadius: 20,
+      padding: "3px 9px",
+      color: C.textMid,
+      fontWeight: 600
+    }, children: [
       o,
-      prices[i] != null && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { color: "#0d9488", fontWeight: 700 }, children: [
-        " ",
+      prices[i] != null && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { color: C.yes, marginLeft: 4, fontWeight: 800 }, children: [
         Math.round(prices[i] * 100),
-        "\xA2"
+        "%"
       ] })
     ] }, o)) });
   }
-  var PRESET_AMOUNTS = [5, 10, 25, 50];
+  var PRESETS = [5, 10, 25, 50];
   function OrderPanel({ market, outcome, session, balance, onCancel, onSuccess, onError }) {
     const [preset, setPreset] = (0, import_react.useState)(10);
     const [custom, setCustom] = (0, import_react.useState)("");
     const [useCustom, setUseCustom] = (0, import_react.useState)(false);
     const [orderType, setOrderType] = (0, import_react.useState)("FOK");
-    const [submitting, setSubmitting] = (0, import_react.useState)(false);
+    const [busy, setBusy] = (0, import_react.useState)(false);
+    const customRef = (0, import_react.useRef)(null);
     const idx = outcome === "Yes" ? 0 : 1;
     const price = market.outcomePrices[idx] ?? 0.5;
     const amount = useCustom ? parseFloat(custom) || 0 : preset;
-    const slippage = orderType === "FOK" ? 1.05 : 1;
-    const estShares = amount > 0 && price > 0 ? (amount / (price * slippage)).toFixed(1) : "?";
-    const accent = outcome === "Yes" ? "#059669" : "#dc2626";
-    const handleConfirm = async () => {
-      if (amount <= 0) return;
-      setSubmitting(true);
+    const slip = orderType === "FOK" ? 1.05 : 1;
+    const shares = amount > 0 && price > 0 ? (amount / (price * slip)).toFixed(2) : "\u2014";
+    const accent = outcome === "Yes" ? C.yes : C.no;
+    const accentD = outcome === "Yes" ? C.yesDim : C.noDim;
+    const lowBal = balance !== null && amount > 0 && amount > balance;
+    (0, import_react.useEffect)(() => {
+      const onKey = (e) => {
+        if (e.key === "Escape") onCancel();
+      };
+      window.addEventListener("keydown", onKey);
+      return () => window.removeEventListener("keydown", onKey);
+    }, [onCancel]);
+    const submit = async () => {
+      if (amount <= 0 || busy) return;
+      setBusy(true);
       try {
         const params = { outcome, usdcAmount: amount, orderType };
-        const res = await chrome.runtime.sendMessage({
-          type: "PLACE_ORDER",
-          session,
-          params,
-          market
-        });
+        const res = await chrome.runtime.sendMessage({ type: "PLACE_ORDER", session, params, market });
         if (res.type === "ORDER_SUCCESS") {
-          onSuccess(`${orderType === "FOK" ? "Market" : "Limit"} order placed \u2014 ${outcome} \u2248${estShares} shares @ $${amount}`);
+          onSuccess(`${orderType === "FOK" ? "Market" : "Limit"} order placed \u2713  ${outcome} \u2248${shares} shares @ $${amount}`);
         } else if (res.error === "NO_ETH_PROVIDER") {
           chrome.tabs.create({ url: market.url });
           onSuccess("Opened on Polymarket (social login)");
@@ -7390,119 +7478,177 @@ var PolymarketPopup = (() => {
       } catch (e) {
         onError(e.message ?? "Order failed");
       } finally {
-        setSubmitting(false);
+        setBusy(false);
       }
     };
     return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
-      background: outcome === "Yes" ? "#f0fdf4" : "#fef2f2",
-      border: `1px solid ${accent}33`,
-      borderRadius: 8,
-      padding: "10px 12px",
-      marginTop: 6
+      marginTop: 10,
+      borderRadius: 10,
+      border: `1px solid ${accent}55`,
+      background: accentD,
+      padding: "12px 14px",
+      animation: "slideDown .15s ease"
     }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 11, fontWeight: 700, color: accent, marginBottom: 8 }, children: [
-        "Buy ",
-        outcome,
-        " \xB7 ",
-        Math.round(price * 100),
-        "\xA2 each"
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { marginBottom: 8 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, color: "#64748b", marginBottom: 4 }, children: "Amount (USDC)" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }, children: [
-          PRESET_AMOUNTS.map((a) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => {
-            setPreset(a);
-            setUseCustom(false);
-          }, style: {
-            padding: "4px 8px",
-            fontSize: 11,
-            fontWeight: 600,
-            borderRadius: 5,
-            border: "none",
-            cursor: "pointer",
-            background: !useCustom && preset === a ? accent : "#e2e8f0",
-            color: !useCustom && preset === a ? "white" : "#475569"
-          }, children: [
-            "$",
-            a
-          ] }, a)),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-            "input",
-            {
-              type: "number",
-              min: "1",
-              placeholder: "Other",
-              value: custom,
-              onChange: (e) => {
-                setCustom(e.target.value);
-                setUseCustom(true);
-              },
-              onFocus: () => setUseCustom(true),
-              style: {
-                width: 65,
-                padding: "4px 6px",
-                fontSize: 11,
-                borderRadius: 5,
-                border: `1px solid ${useCustom ? accent : "#e2e8f0"}`,
-                outline: "none",
-                color: "#1e293b"
-              }
-            }
-          )
-        ] })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { marginBottom: 10 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 6 }, children: ["FOK", "GTC"].map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setOrderType(t), style: {
-          padding: "4px 10px",
-          fontSize: 11,
-          fontWeight: 600,
-          borderRadius: 5,
-          border: "none",
-          cursor: "pointer",
-          background: orderType === t ? "#0d9488" : "#e2e8f0",
-          color: orderType === t ? "white" : "#475569"
-        }, children: t === "FOK" ? "Market order" : `Limit ${Math.round(price * 100)}\xA2` }, t)) }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, color: "#94a3b8", marginTop: 3 }, children: orderType === "FOK" ? "Fills immediately at best available price (\u22645% slippage)" : "Resting limit \u2014 fills when a matching ask appears" })
-      ] }),
-      amount > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 11, background: "white", borderRadius: 5, padding: "5px 8px", marginBottom: 8, color: "#475569" }, children: [
-        "Spend ",
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("strong", { children: [
-          "$",
-          amount
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 13, fontWeight: 800, color: accent }, children: [
+          "Buy ",
+          outcome,
+          " \xB7 ",
+          Math.round(price * 100),
+          "%"
         ] }),
-        " \u2192 get \u2248",
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: estShares }),
-        " ",
-        outcome,
-        " shares",
-        balance !== null && amount > balance && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { color: "#dc2626", fontSize: 10, marginTop: 2 }, children: [
-          "\u26A0 Low balance ($",
-          balance.toFixed(2),
-          " available)"
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onCancel, style: {
+          background: "none",
+          border: "none",
+          color: C.muted,
+          cursor: "pointer",
+          fontSize: 16,
+          lineHeight: 1,
+          padding: "0 4px"
+        }, children: "\xD7" })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
+        fontSize: 11,
+        color: C.muted,
+        marginBottom: 6,
+        fontWeight: 600,
+        textTransform: "uppercase",
+        letterSpacing: ".06em"
+      }, children: "Amount (USDC)" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }, children: [
+        PRESETS.map((a) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+          "button",
+          {
+            onClick: () => {
+              setPreset(a);
+              setUseCustom(false);
+            },
+            style: chip(!useCustom && preset === a, accent),
+            children: [
+              "$",
+              a
+            ]
+          },
+          a
+        )),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "input",
+          {
+            ref: customRef,
+            type: "number",
+            min: "1",
+            placeholder: "Other",
+            value: custom,
+            onChange: (e) => {
+              setCustom(e.target.value);
+              setUseCustom(true);
+            },
+            onFocus: () => setUseCustom(true),
+            style: {
+              width: 68,
+              padding: "5px 8px",
+              fontSize: 11,
+              fontWeight: 700,
+              borderRadius: 20,
+              border: `1px solid ${useCustom ? accent : C.border}`,
+              outline: "none",
+              background: useCustom ? accentD : "transparent",
+              color: C.text
+            }
+          }
+        )
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
+        fontSize: 11,
+        color: C.muted,
+        marginBottom: 6,
+        fontWeight: 600,
+        textTransform: "uppercase",
+        letterSpacing: ".06em"
+      }, children: "Order type" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 6, marginBottom: 12 }, children: ["FOK", "GTC"].map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "button",
+        {
+          onClick: () => setOrderType(t),
+          style: {
+            ...chip(orderType === t, C.brand),
+            borderRadius: 7,
+            padding: "6px 14px"
+          },
+          children: t === "FOK" ? "\u26A1 Market (fill now)" : `\u{1F4CC} Limit ${Math.round(price * 100)}%`
+        },
+        t
+      )) }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, color: C.muted, marginBottom: 12, lineHeight: 1.5 }, children: orderType === "FOK" ? "Fills immediately at best available price \xB7 up to 5% slippage allowed" : `Resting limit at ${Math.round(price * 100)}% \xB7 fills when matched` }),
+      amount > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
+        background: C.card,
+        border: `1px solid ${C.border}`,
+        borderRadius: 8,
+        padding: "8px 12px",
+        marginBottom: 12,
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center"
+      }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: C.textMid }, children: "You spend" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 13, fontWeight: 800, color: C.text }, children: [
+          "$",
+          amount,
+          " USDC"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: C.muted }, children: "\u2192" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: C.textMid }, children: "You get \u2248" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 13, fontWeight: 800, color: accent }, children: [
+          shares,
+          " shares"
         ] })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 6 }, children: [
+      lowBal && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
+        fontSize: 11,
+        color: C.amber,
+        background: C.amberDim,
+        border: `1px solid ${C.amber}44`,
+        borderRadius: 6,
+        padding: "6px 10px",
+        marginBottom: 10
+      }, children: [
+        "\u26A0 Balance $",
+        balance.toFixed(2),
+        " may be insufficient"
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 8 }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onCancel, style: {
           flex: 1,
-          padding: "7px",
+          padding: "9px",
           fontSize: 12,
-          borderRadius: 6,
-          border: "1px solid #e2e8f0",
-          background: "white",
-          color: "#64748b",
+          fontWeight: 600,
+          borderRadius: 8,
+          border: `1px solid ${C.border}`,
+          background: "transparent",
+          color: C.textMid,
           cursor: "pointer"
         }, children: "Cancel" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleConfirm, disabled: submitting || amount <= 0, style: {
-          flex: 2,
-          padding: "7px",
-          fontSize: 12,
-          fontWeight: 700,
-          borderRadius: 6,
-          border: "none",
-          background: submitting || amount <= 0 ? "#94a3b8" : accent,
-          color: "white",
-          cursor: submitting || amount <= 0 ? "not-allowed" : "pointer"
-        }, children: submitting ? "\u23F3 Signing\u2026" : `Confirm Buy ${outcome}` })
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "button",
+          {
+            onClick: submit,
+            disabled: busy || amount <= 0 || lowBal === true,
+            style: {
+              flex: 2.5,
+              padding: "9px",
+              fontSize: 13,
+              fontWeight: 800,
+              borderRadius: 8,
+              border: "none",
+              cursor: busy || amount <= 0 ? "not-allowed" : "pointer",
+              background: busy || amount <= 0 ? C.muted : accent,
+              color: "#fff",
+              opacity: busy ? 0.7 : 1,
+              transition: "opacity .15s"
+            },
+            children: busy ? "\u23F3 Awaiting wallet\u2026" : `Confirm Buy ${outcome}`
+          }
+        )
       ] })
     ] });
   }
@@ -7516,128 +7662,242 @@ var PolymarketPopup = (() => {
     onSuccess,
     onError
   }) {
-    const isBinary = market.outcomes.length === 2 && market.outcomes[0]?.toLowerCase() === "yes";
+    const [hover, setHover] = (0, import_react.useState)(false);
+    const binary = market.outcomes.length === 2 && market.outcomes[0]?.toLowerCase() === "yes";
     const isOpen = activeOrder?.marketId === market.id;
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { background: "white", borderRadius: 8, padding: "10px 12px", marginBottom: 8, border: "1px solid #e2e8f0" }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, fontWeight: 600, color: "#1e293b", lineHeight: 1.4, marginBottom: 6, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }, children: market.question }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(OddsBar, { outcomes: market.outcomes, prices: market.outcomePrices }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#94a3b8" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
-          "\u{1F4CA} ",
-          fmtVol(market.volume24hr || market.volume)
-        ] }),
-        market.endDate && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
-          "\xB7 \u23F1 ",
-          fmtTimeLeft(market.endDate)
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { flex: 1 } }),
-        isBinary && session ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => onBuy(market, "Yes"), style: {
-            fontSize: 10,
-            fontWeight: 700,
-            background: "#059669",
-            color: "white",
-            borderRadius: 4,
-            padding: "3px 7px",
-            border: "none",
-            cursor: "pointer"
-          }, children: [
-            "YES ",
-            Math.round((market.outcomePrices[0] ?? 0.5) * 100),
-            "\xA2"
+    const yPct = Math.round((market.outcomePrices[0] ?? 0.5) * 100);
+    const nPct = 100 - yPct;
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+      "div",
+      {
+        onMouseEnter: () => setHover(true),
+        onMouseLeave: () => setHover(false),
+        style: {
+          background: hover ? C.cardHover : C.card,
+          border: `1px solid ${isOpen ? C.borderLight : C.border}`,
+          borderRadius: 12,
+          padding: "12px 14px",
+          marginBottom: 8,
+          transition: "background .15s, border-color .15s"
+        },
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
+            fontSize: 13,
+            fontWeight: 600,
+            color: C.text,
+            lineHeight: 1.45,
+            marginBottom: 10,
+            display: "-webkit-box",
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden"
+          }, children: market.question }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(OddsBar, { outcomes: market.outcomes, prices: market.outcomePrices }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 11, color: C.muted, fontWeight: 500 }, children: [
+              "\u{1F4CA} ",
+              fmtVol(market.volume24hr || market.volume)
+            ] }),
+            market.endDate && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 11, color: C.muted }, children: [
+              "\xB7 \u23F1 ",
+              fmtTimeLeft(market.endDate)
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1 } }),
+            binary && session ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 5 }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => onBuy(market, "Yes"), style: {
+                fontSize: 11,
+                fontWeight: 800,
+                background: isOpen && activeOrder?.outcome === "Yes" ? C.yes : C.yesDim,
+                color: C.yes,
+                border: `1px solid ${C.yes}55`,
+                borderRadius: 6,
+                padding: "4px 10px",
+                cursor: "pointer",
+                transition: "background .15s"
+              }, children: [
+                "YES ",
+                yPct,
+                "%"
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => onBuy(market, "No"), style: {
+                fontSize: 11,
+                fontWeight: 800,
+                background: isOpen && activeOrder?.outcome === "No" ? C.no : C.noDim,
+                color: C.no,
+                border: `1px solid ${C.no}55`,
+                borderRadius: 6,
+                padding: "4px 10px",
+                cursor: "pointer",
+                transition: "background .15s"
+              }, children: [
+                "NO ",
+                nPct,
+                "%"
+              ] })
+            ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", { href: market.url, target: "_blank", rel: "noopener noreferrer", style: {
+              fontSize: 11,
+              fontWeight: 700,
+              background: C.brandDim,
+              color: C.brand,
+              border: `1px solid ${C.brand}44`,
+              borderRadius: 6,
+              padding: "4px 10px",
+              textDecoration: "none"
+            }, children: "Trade \u2197" })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => onBuy(market, "No"), style: {
-            fontSize: 10,
-            fontWeight: 700,
-            background: "#dc2626",
-            color: "white",
-            borderRadius: 4,
-            padding: "3px 7px",
-            border: "none",
-            cursor: "pointer"
-          }, children: [
-            "NO ",
-            Math.round((market.outcomePrices[1] ?? 0.5) * 100),
-            "\xA2"
-          ] })
-        ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", { href: market.url, target: "_blank", rel: "noopener noreferrer", style: {
-          fontSize: 10,
-          fontWeight: 700,
-          background: "#0d9488",
-          color: "white",
-          borderRadius: 4,
-          padding: "3px 8px",
-          textDecoration: "none"
-        }, children: "View \u2197" })
-      ] }),
-      isOpen && session && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        OrderPanel,
-        {
-          market,
-          outcome: activeOrder.outcome,
-          session,
-          balance,
-          onCancel,
-          onSuccess,
-          onError
-        }
-      )
+          isOpen && session && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            OrderPanel,
+            {
+              market,
+              outcome: activeOrder.outcome,
+              session,
+              balance,
+              onCancel,
+              onSuccess,
+              onError
+            }
+          )
+        ]
+      }
+    );
+  }
+  function SkeletonCard() {
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { background: C.card, borderRadius: 12, padding: "12px 14px", marginBottom: 8, border: `1px solid ${C.border}` }, children: [
+      [80, 95, 60].map((w, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
+        height: 12,
+        borderRadius: 6,
+        background: C.border,
+        marginBottom: 8,
+        width: `${w}%`,
+        animation: "pulse 1.6s ease-in-out infinite",
+        animationDelay: `${i * 0.15}s`
+      } }, i)),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: 5, borderRadius: 4, background: C.border, marginBottom: 10 } }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 6 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: 26, width: 70, borderRadius: 6, background: C.border } }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: 26, width: 70, borderRadius: 6, background: C.border } })
+      ] })
     ] });
   }
   function SessionPanel({
     session,
-    loading: sLoading,
+    loading,
     noTab,
     balance,
     onRefresh
   }) {
-    if (sLoading) {
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "10px 12px", background: "#fafafa", borderBottom: "1px solid #f1f5f9", fontSize: 11, color: "#94a3b8" }, children: "Checking Polymarket session\u2026" });
+    if (loading) {
+      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
+        padding: "10px 16px",
+        background: C.panel,
+        borderBottom: `1px solid ${C.border}`,
+        fontSize: 12,
+        color: C.muted,
+        display: "flex",
+        alignItems: "center",
+        gap: 8
+      }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          background: C.muted,
+          animation: "pulse 1.4s infinite"
+        } }),
+        "Checking session\u2026"
+      ] });
     }
     if (!session) {
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "10px 12px", background: "#fffbeb", borderBottom: "1px solid #fde68a" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, fontWeight: 700, color: "#92400e", marginBottom: 4 }, children: "Not connected" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, color: "#78350f", marginBottom: 8, lineHeight: 1.5 }, children: noTab ? "Open polymarket.com in any tab and log in \u2014 any login method works (MetaMask, Google, email\u2026)" : "Log in at polymarket.com \u2014 any login method works (MetaMask, Google, email\u2026)" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 6 }, children: [
+      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "12px 16px", background: C.amberDim, borderBottom: `1px solid ${C.amber}44` }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, fontWeight: 700, color: C.amber, marginBottom: 4 }, children: "Not connected to Polymarket" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, color: C.textMid, marginBottom: 10, lineHeight: 1.55 }, children: noTab ? "Open polymarket.com in any tab and log in. All login methods work." : "Log in at polymarket.com \u2014 MetaMask, Coinbase, WalletConnect, Google, email all work." }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 8 }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => chrome.tabs.create({ url: "https://polymarket.com" }), style: {
+            ...btn(C.amber),
             flex: 1,
-            padding: "6px",
-            fontSize: 11,
-            fontWeight: 600,
-            background: "#d97706",
-            color: "white",
-            border: "none",
-            borderRadius: 5,
-            cursor: "pointer"
-          }, children: "Open Polymarket" }),
+            padding: "8px",
+            fontSize: 12
+          }, children: "Open Polymarket \u2197" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onRefresh, style: {
-            padding: "6px 10px",
-            fontSize: 11,
-            background: "white",
-            color: "#64748b",
-            border: "1px solid #e2e8f0",
-            borderRadius: 5,
+            padding: "8px 14px",
+            fontSize: 12,
+            fontWeight: 600,
+            borderRadius: 8,
+            border: `1px solid ${C.border}`,
+            background: "transparent",
+            color: C.textMid,
             cursor: "pointer"
           }, children: "Retry" })
         ] })
       ] });
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "8px 12px", background: "#f0fdf4", borderBottom: "1px solid #bbf7d0" }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { width: 7, height: 7, borderRadius: "50%", background: "#22c55e", display: "inline-block", flexShrink: 0 } }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 11, fontWeight: 700, color: "#166534", fontFamily: "monospace" }, children: shortAddr(session.address) }),
-        balance !== null && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, color: "#64748b" }, children: [
-          "\xB7 ",
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("strong", { style: { color: "#059669" }, children: [
-            "$",
-            balance.toFixed(2)
-          ] })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { flex: 1 } }),
-        !session.hasEthProvider && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 9, color: "#d97706", background: "#fffbeb", borderRadius: 4, padding: "2px 5px", border: "1px solid #fde68a" }, children: "Social login" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onRefresh, style: { fontSize: 11, color: "#94a3b8", background: "none", border: "none", cursor: "pointer" }, children: "\u21BB" })
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
+      padding: "9px 16px",
+      background: C.panel,
+      borderBottom: `1px solid ${C.border}`,
+      display: "flex",
+      alignItems: "center",
+      gap: 10
+    }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 7 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: {
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          background: C.green,
+          display: "inline-block",
+          flexShrink: 0,
+          boxShadow: `0 0 6px ${C.green}88`
+        } }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, fontWeight: 700, color: C.text, fontFamily: "monospace" }, children: shortAddr(session.address) })
       ] }),
-      !session.hasEthProvider && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, color: "#78350f", marginTop: 3 }, children: "Social login \u2014 clicking Buy will open the market on Polymarket" })
+      balance !== null && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 5 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 1, height: 14, background: C.border } }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 12, fontWeight: 800, color: C.yes }, children: [
+          "$",
+          balance.toFixed(2)
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 11, color: C.muted }, children: "USDC" })
+      ] }),
+      !session.hasEthProvider && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 1, height: 14, background: C.border } }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: {
+          fontSize: 10,
+          fontWeight: 700,
+          color: C.amber,
+          background: C.amberDim,
+          borderRadius: 20,
+          padding: "2px 8px",
+          border: `1px solid ${C.amber}44`
+        }, children: "Social login" })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1 } }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onRefresh, title: "Refresh session", style: {
+        background: "none",
+        border: "none",
+        color: C.muted,
+        cursor: "pointer",
+        fontSize: 14,
+        padding: "2px 4px",
+        transition: "color .15s"
+      }, children: "\u21BB" })
+    ] });
+  }
+  function Toast({ ok, msg }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
+      padding: "10px 16px",
+      fontSize: 12,
+      fontWeight: 600,
+      background: ok ? C.yesDim : C.noDim,
+      color: ok ? C.yes : C.no,
+      borderBottom: `1px solid ${ok ? C.yes : C.no}44`,
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      animation: "slideDown .2s ease"
+    }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: ok ? "\u2713" : "\u26A0" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { flex: 1 }, children: msg })
     ] });
   }
   function App() {
@@ -7650,9 +7910,12 @@ var PolymarketPopup = (() => {
     const [searching, setSearching] = (0, import_react.useState)(false);
     const [searchError, setSearchError] = (0, import_react.useState)(null);
     const [searched, setSearched] = (0, import_react.useState)(false);
+    const [recents, setRecents] = (0, import_react.useState)([]);
+    const [showHints, setShowHints] = (0, import_react.useState)(false);
     const [activeOrder, setActiveOrder] = (0, import_react.useState)(null);
     const [toast, setToast] = (0, import_react.useState)(null);
     const toastRef = (0, import_react.useRef)(null);
+    const searchRef = (0, import_react.useRef)(null);
     const loadSession = (0, import_react.useCallback)(async () => {
       setSessionLoading(true);
       try {
@@ -7672,21 +7935,41 @@ var PolymarketPopup = (() => {
       }
     }, []);
     (0, import_react.useEffect)(() => {
+      chrome.storage.local.get("pm_recents", (d) => setRecents(d.pm_recents ?? []));
+    }, []);
+    const saveRecent = (0, import_react.useCallback)((q) => {
+      setRecents((prev) => {
+        const next = [q, ...prev.filter((r) => r !== q)].slice(0, 6);
+        chrome.storage.local.set({ pm_recents: next });
+        return next;
+      });
+    }, []);
+    (0, import_react.useEffect)(() => {
       loadSession();
-    }, [loadSession]);
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const tab = tabs[0];
+        if (!tab?.title || tab.url?.includes("polymarket.com")) return;
+        const kw = keywordsFromTitle(tab.title);
+        if (!kw) return;
+        setQuery(kw);
+        doSearch(kw);
+      });
+    }, []);
     const showToast = (0, import_react.useCallback)((ok, msg) => {
       setToast({ ok, msg });
       setActiveOrder(null);
       if (toastRef.current) clearTimeout(toastRef.current);
-      toastRef.current = setTimeout(() => setToast(null), 4500);
+      toastRef.current = setTimeout(() => setToast(null), 5e3);
     }, []);
-    const handleSearch = (0, import_react.useCallback)(async (q) => {
+    const doSearch = (0, import_react.useCallback)(async (q) => {
       const trimmed = q.trim();
       if (!trimmed) return;
       setSearching(true);
       setSearchError(null);
       setSearched(true);
       setActiveOrder(null);
+      setShowHints(false);
+      saveRecent(trimmed);
       try {
         const res = await chrome.runtime.sendMessage({
           type: "SEARCH_MARKETS",
@@ -7699,92 +7982,269 @@ var PolymarketPopup = (() => {
       } finally {
         setSearching(false);
       }
-    }, []);
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { background: "#0d9488", color: "white", padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 18 }, children: "\u{1F3AF}" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, fontWeight: 700 }, children: "Polymarket Radar" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, opacity: 0.8 }, children: "Quick orders via your Polymarket session" })
+    }, [saveRecent]);
+    const handleSearchKey = (e) => {
+      if (e.key === "Enter") doSearch(query);
+      if (e.key === "Escape") {
+        setShowHints(false);
+        e.target.blur();
+      }
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("style", { children: `
+        @keyframes slideDown { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:none } }
+        @keyframes pulse     { 0%,100% { opacity:.4 } 50% { opacity:1 } }
+        * { box-sizing:border-box; }
+        body { margin:0; background:${C.bg}; }
+        ::-webkit-scrollbar { width:4px }
+        ::-webkit-scrollbar-track { background:transparent }
+        ::-webkit-scrollbar-thumb { background:${C.border}; border-radius:4px }
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none }
+      ` }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontFamily: FONT, background: C.bg, color: C.text, width: 400, minHeight: 200 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
+          background: C.panel,
+          borderBottom: `1px solid ${C.border}`,
+          padding: "12px 16px",
+          display: "flex",
+          alignItems: "center",
+          gap: 10
+        }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            background: "linear-gradient(135deg, #6170FF, #0AC18E)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 16,
+            flexShrink: 0
+          }, children: "\u{1F3AF}" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, fontWeight: 800, color: C.text, letterSpacing: "-.01em" }, children: "Polymarket Radar" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, color: C.muted, marginTop: 1 }, children: "Quick orders via your session" })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1 } }),
+          session && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            background: C.yesDim,
+            border: `1px solid ${C.yes}33`,
+            borderRadius: 20,
+            padding: "4px 10px"
+          }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: {
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: C.green,
+              display: "inline-block",
+              boxShadow: `0 0 5px ${C.green}`
+            } }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 11, fontWeight: 700, color: C.yes, fontFamily: "monospace" }, children: shortAddr(session.address) })
+          ] })
         ] }),
-        session && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 4, background: "rgba(255,255,255,.15)", borderRadius: 20, padding: "3px 8px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { width: 6, height: 6, borderRadius: "50%", background: "#4ade80", display: "inline-block" } }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, fontWeight: 600 }, children: shortAddr(session.address) })
-        ] })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SessionPanel, { session, loading: sessionLoading, noTab, balance, onRefresh: loadSession }),
-      toast && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
-        padding: "8px 12px",
-        fontSize: 11,
-        fontWeight: 600,
-        background: toast.ok ? "#f0fdf4" : "#fef2f2",
-        color: toast.ok ? "#166534" : "#dc2626",
-        borderBottom: `1px solid ${toast.ok ? "#bbf7d0" : "#fecaca"}`
-      }, children: [
-        toast.ok ? "\u2713 " : "\u26A0 ",
-        toast.msg
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "10px 12px", background: "white", borderBottom: "1px solid #f1f5f9" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 6 }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "input",
+          SessionPanel,
           {
-            type: "text",
-            value: query,
-            placeholder: "Search topic (e.g. bitcoin, election\u2026)",
-            onChange: (e) => setQuery(e.target.value),
-            onKeyDown: (e) => e.key === "Enter" && handleSearch(query),
-            style: { flex: 1, padding: "7px 10px", fontSize: 12, border: "1px solid #e2e8f0", borderRadius: 6, outline: "none", color: "#1e293b" }
+            session,
+            loading: sessionLoading,
+            noTab,
+            balance,
+            onRefresh: loadSession
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => handleSearch(query), disabled: searching, style: {
-          background: "#0d9488",
-          color: "white",
-          border: "none",
-          borderRadius: 6,
-          padding: "7px 12px",
-          cursor: "pointer",
-          fontSize: 12,
-          fontWeight: 600,
-          opacity: searching ? 0.7 : 1
-        }, children: searching ? "\u2026" : "Search" })
-      ] }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "10px 12px", maxHeight: 380, overflowY: "auto" }, children: [
-        searching && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { textAlign: "center", padding: "24px 0", color: "#94a3b8", fontSize: 12 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 20, marginBottom: 8 }, children: "\u23F3" }),
-          "Searching Polymarket\u2026"
+        toast && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Toast, { ok: toast.ok, msg: toast.msg }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "12px 16px", background: C.panel, borderBottom: `1px solid ${C.border}` }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { position: "relative" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              background: C.card,
+              border: `1px solid ${C.border}`,
+              borderRadius: 10,
+              padding: "0 12px",
+              transition: "border-color .15s"
+            }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 14, color: C.muted, flexShrink: 0 }, children: "\u{1F50D}" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                "input",
+                {
+                  ref: searchRef,
+                  type: "text",
+                  value: query,
+                  placeholder: "Search any topic\u2026",
+                  onChange: (e) => setQuery(e.target.value),
+                  onKeyDown: handleSearchKey,
+                  onFocus: () => setShowHints(recents.length > 0),
+                  onBlur: () => setTimeout(() => setShowHints(false), 150),
+                  style: {
+                    flex: 1,
+                    background: "none",
+                    border: "none",
+                    outline: "none",
+                    fontSize: 13,
+                    color: C.text,
+                    padding: "10px 0",
+                    fontFamily: FONT
+                  }
+                }
+              ),
+              query && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                "button",
+                {
+                  onClick: () => {
+                    setQuery("");
+                    setSearched(false);
+                    setMarkets([]);
+                    searchRef.current?.focus();
+                  },
+                  style: { background: "none", border: "none", color: C.muted, cursor: "pointer", padding: "0 2px", fontSize: 16 },
+                  children: "\xD7"
+                }
+              )
+            ] }),
+            showHints && recents.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
+              position: "absolute",
+              top: "100%",
+              left: 0,
+              right: 0,
+              zIndex: 100,
+              background: C.card,
+              border: `1px solid ${C.border}`,
+              borderRadius: 10,
+              marginTop: 4,
+              overflow: "hidden",
+              boxShadow: "0 8px 24px rgba(0,0,0,.5)"
+            }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
+                padding: "6px 12px",
+                fontSize: 10,
+                color: C.muted,
+                textTransform: "uppercase",
+                letterSpacing: ".06em",
+                fontWeight: 600
+              }, children: "Recent" }),
+              recents.map((r) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+                "button",
+                {
+                  onClick: () => {
+                    setQuery(r);
+                    doSearch(r);
+                  },
+                  style: {
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "8px 14px",
+                    fontSize: 13,
+                    color: C.textMid,
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    borderTop: `1px solid ${C.border}`,
+                    transition: "background .1s"
+                  },
+                  onMouseEnter: (e) => e.currentTarget.style.background = C.cardHover,
+                  onMouseLeave: (e) => e.currentTarget.style.background = "none",
+                  children: [
+                    "\u{1F550} ",
+                    r
+                  ]
+                },
+                r
+              ))
+            ] })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              onClick: () => doSearch(query),
+              disabled: searching || !query.trim(),
+              style: {
+                ...btn(C.brand, true),
+                marginTop: 8,
+                opacity: searching || !query.trim() ? 0.5 : 1,
+                cursor: searching || !query.trim() ? "not-allowed" : "pointer"
+              },
+              children: searching ? "Searching\u2026" : "Search Markets"
+            }
+          )
         ] }),
-        searchError && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { textAlign: "center", padding: "16px 0", color: "#dc2626", fontSize: 12 }, children: [
-          "\u26A0\uFE0F ",
-          searchError
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "10px 12px", maxHeight: 400, overflowY: "auto" }, children: [
+          searching && [1, 2, 3].map((i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SkeletonCard, {}, i)),
+          searchError && !searching && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
+            textAlign: "center",
+            padding: "20px 16px",
+            color: C.no,
+            fontSize: 13,
+            background: C.noDim,
+            borderRadius: 10,
+            border: `1px solid ${C.no}33`
+          }, children: [
+            "\u26A0 ",
+            searchError
+          ] }),
+          !searching && searched && markets.length === 0 && !searchError && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { textAlign: "center", padding: "28px 16px", color: C.muted }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 28, marginBottom: 10 }, children: "\u{1F50D}" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 13, fontWeight: 600, color: C.textMid }, children: "No active markets found" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, marginTop: 4 }, children: "Try different keywords" })
+          ] }),
+          !searching && markets.map((m) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            MarketCard,
+            {
+              market: m,
+              session,
+              activeOrder,
+              balance,
+              onBuy: (mkt, o) => {
+                setActiveOrder(
+                  (prev) => prev?.marketId === mkt.id && prev.outcome === o ? null : { marketId: mkt.id, outcome: o }
+                );
+              },
+              onCancel: () => setActiveOrder(null),
+              onSuccess: (msg) => showToast(true, msg),
+              onError: (msg) => showToast(false, msg)
+            },
+            m.id
+          )),
+          !searched && !searching && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { textAlign: "center", padding: "32px 20px", color: C.muted }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 32, marginBottom: 12 }, children: "\u{1F4E1}" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, fontWeight: 700, color: C.textMid, marginBottom: 6 }, children: "Search any topic" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, lineHeight: 1.65 }, children: session ? "Find a market, then click YES% or NO% to quick-order directly from here" : "Log in at polymarket.com first, then search to place orders" }),
+            !session && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "button",
+              {
+                onClick: () => chrome.tabs.create({ url: "https://polymarket.com" }),
+                style: { ...btn(C.brand), marginTop: 16, fontSize: 12 },
+                children: "Open Polymarket \u2197"
+              }
+            )
+          ] })
         ] }),
-        !searching && searched && markets.length === 0 && !searchError && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { textAlign: "center", padding: "24px 0", color: "#94a3b8", fontSize: 12 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 20, marginBottom: 8 }, children: "\u{1F50D}" }),
-          "No active markets found"
-        ] }),
-        !searching && markets.map((m) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          MarketCard,
-          {
-            market: m,
-            session,
-            activeOrder,
-            balance,
-            onBuy: (mkt, outcome) => setActiveOrder({ marketId: mkt.id, outcome }),
-            onCancel: () => setActiveOrder(null),
-            onSuccess: (msg) => showToast(true, msg),
-            onError: (msg) => showToast(false, msg)
-          },
-          m.id
-        )),
-        !searched && !searching && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { textAlign: "center", padding: "24px 16px", color: "#94a3b8", fontSize: 12 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 28, marginBottom: 10 }, children: "\u{1F3AF}" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontWeight: 600, color: "#64748b", marginBottom: 4 }, children: "Search any topic" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { lineHeight: 1.6 }, children: session ? "Find a market \u2192 click YES/NO to place quick orders" : "Log in at polymarket.com, then search to quick-order" })
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
+          padding: "8px 16px",
+          borderTop: `1px solid ${C.border}`,
+          background: C.panel,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between"
+        }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: C.muted }, children: searched && !searching ? `${markets.length} market${markets.length !== 1 ? "s" : ""}` : "Polymarket Radar v1.1" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "a",
+            {
+              href: "https://polymarket.com",
+              target: "_blank",
+              rel: "noopener",
+              style: { fontSize: 10, color: C.brand, fontWeight: 700, textDecoration: "none" },
+              children: "polymarket.com \u2197"
+            }
+          )
         ] })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "8px 12px", borderTop: "1px solid #f1f5f9", fontSize: 10, color: "#cbd5e1", textAlign: "center" }, children: [
-        "Orders via your existing Polymarket session \xB7",
-        " ",
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", { href: "https://polymarket.com", target: "_blank", rel: "noopener", style: { color: "#0d9488", textDecoration: "none", fontWeight: 600 }, children: "polymarket.com" })
       ] })
     ] });
   }

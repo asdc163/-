@@ -1,20 +1,48 @@
 /**
- * Popup UI — "Order facilitation" approach.
+ * Popup — Polymarket Radar
+ * Dark theme inspired by polymarket.com design system.
  *
- * The extension piggybacks on the user's existing Polymarket session:
- *  - No wallet connect inside the extension
- *  - Session (CLOB credentials) is read from polymarket.com's localStorage
- *  - All login methods work (MetaMask, Coinbase, WalletConnect, Privy/social, etc.)
- *  - Orders are signed using the wallet already connected on polymarket.com
- *  - Market orders (FOK) and limit orders (GTC) both supported
+ * UX features:
+ *  - Auto-search from active tab title on open
+ *  - Recent searches (persisted in chrome.storage.local)
+ *  - Keyboard: Enter to search, Esc to close order panel
+ *  - Market order (FOK) / Limit order (GTC) toggle
+ *  - Social-login fallback: opens market on polymarket.com
+ *  - Live balance display, refresh button
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, {
+  useState, useEffect, useCallback, useRef, KeyboardEvent
+} from 'react';
 import type { PolymarketMarket, PolySession, OrderParams } from '../shared/types';
 import { getPolyBalance } from '../shared/clob-client';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────
+// ─── Design tokens (Polymarket dark theme) ───────────────────────────────────
+const C = {
+  bg:          '#0C0F1A',
+  panel:       '#111520',
+  card:        '#141928',
+  cardHover:   '#1A2136',
+  border:      '#232A3B',
+  borderLight: '#2E3650',
+  text:        '#E8EDF5',
+  textMid:     '#A3ADBF',
+  muted:       '#5E6A82',
+  yes:         '#0AC18E',
+  yesDim:      '#0AC18E22',
+  no:          '#E23E3E',
+  noDim:       '#E23E3E22',
+  brand:       '#6170FF',
+  brandDim:    '#6170FF22',
+  amber:       '#F59E0B',
+  amberDim:    '#F59E0B22',
+  green:       '#22C55E',
+  red:         '#EF4444',
+} as const;
 
+const FONT = `Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtVol(v: number): string {
   if (v >= 1e6) return `$${(v / 1e6).toFixed(1)}M`;
   if (v >= 1e3) return `$${(v / 1e3).toFixed(0)}K`;
@@ -23,51 +51,84 @@ function fmtVol(v: number): string {
 
 function fmtTimeLeft(endDate: string): string {
   if (!endDate) return '';
-  const diff = new Date(endDate).getTime() - Date.now();
-  if (diff <= 0) return 'Ended';
-  const d = Math.floor(diff / 86_400_000);
+  const ms = new Date(endDate).getTime() - Date.now();
+  if (ms <= 0) return 'Ended';
+  const d = Math.floor(ms / 86_400_000);
   if (d > 60) return `${Math.floor(d / 30)}mo`;
-  if (d > 0) return `${d}d`;
-  const h = Math.floor(diff / 3_600_000);
+  if (d > 0)  return `${d}d`;
+  const h = Math.floor(ms / 3_600_000);
   return h > 0 ? `${h}h` : '<1h';
 }
 
-function shortAddr(addr: string): string {
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+function shortAddr(a: string): string {
+  return `${a.slice(0, 6)}…${a.slice(-4)}`;
 }
 
-// ─── OddsBar ──────────────────────────────────────────────────────────────
+/** Strip site name, punctuation; return 2-4 meaningful keywords. */
+function keywordsFromTitle(title: string): string {
+  const STOP = new Set(['the','and','for','with','from','that','this','are','was','will',
+    'video','watch','twitter','youtube','home','trending','explore','page','new','top']);
+  return title
+    .replace(/[|–\-—]/g, ' ').replace(/\(.*?\)/g, '').replace(/[^a-zA-Z0-9 ]/g, ' ')
+    .toLowerCase().split(/\s+/)
+    .filter(w => w.length > 3 && !STOP.has(w))
+    .slice(0, 4).join(' ');
+}
 
+// ─── Styles helper ────────────────────────────────────────────────────────────
+const chip = (active: boolean, color: string = C.brand): React.CSSProperties => ({
+  padding: '5px 12px', fontSize: 11, fontWeight: 700, borderRadius: 20,
+  border: `1px solid ${active ? color : C.border}`,
+  background: active ? color + '25' : 'transparent',
+  color: active ? color : C.textMid, cursor: 'pointer',
+  transition: 'all .15s',
+});
+
+const btn = (bg: string, full = false): React.CSSProperties => ({
+  width: full ? '100%' : undefined, padding: '9px 16px',
+  fontSize: 13, fontWeight: 700, borderRadius: 8, border: 'none',
+  background: bg, color: '#fff', cursor: 'pointer', transition: 'opacity .15s',
+});
+
+// ─── OddsBar ──────────────────────────────────────────────────────────────────
 function OddsBar({ outcomes, prices }: { outcomes: string[]; prices: number[] }) {
   const binary = outcomes.length === 2 && outcomes[0]?.toLowerCase() === 'yes';
   if (binary) {
-    const yes = Math.round((prices[0] ?? 0.5) * 100);
+    const y = Math.round((prices[0] ?? 0.5) * 100);
+    const n = 100 - y;
     return (
-      <div style={{ marginBottom: 6 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 700, marginBottom: 3 }}>
-          <span style={{ color: '#059669' }}>YES {yes}¢</span>
-          <span style={{ color: '#dc2626' }}>NO {100 - yes}¢</span>
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: C.yes }}>YES {y}%</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: C.no  }}>NO {n}%</span>
         </div>
-        <div style={{ height: 4, background: '#fee2e2', borderRadius: 3, overflow: 'hidden' }}>
-          <div style={{ width: `${yes}%`, height: '100%', background: '#059669', borderRadius: 3 }} />
+        <div style={{ height: 5, borderRadius: 4, background: C.noDim, overflow: 'hidden' }}>
+          <div style={{ width: `${y}%`, height: '100%', background: C.yes, borderRadius: 4,
+            transition: 'width .4s ease' }} />
         </div>
       </div>
     );
   }
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
       {outcomes.slice(0, 4).map((o, i) => (
-        <span key={o} style={{ fontSize: 10, background: '#f1f5f9', borderRadius: 4, padding: '2px 6px', color: '#475569', fontWeight: 500 }}>
-          {o}{prices[i] != null && <span style={{ color: '#0d9488', fontWeight: 700 }}> {Math.round(prices[i] * 100)}¢</span>}
+        <span key={o} style={{
+          fontSize: 11, background: C.border, borderRadius: 20, padding: '3px 9px',
+          color: C.textMid, fontWeight: 600,
+        }}>
+          {o}
+          {prices[i] != null &&
+            <span style={{ color: C.yes, marginLeft: 4, fontWeight: 800 }}>
+              {Math.round(prices[i] * 100)}%
+            </span>}
         </span>
       ))}
     </div>
   );
 }
 
-// ─── Inline Order Panel ───────────────────────────────────────────────────
-
-const PRESET_AMOUNTS = [5, 10, 25, 50];
+// ─── Order Panel ──────────────────────────────────────────────────────────────
+const PRESETS = [5, 10, 25, 50];
 
 interface OrderPanelProps {
   market: PolymarketMarket;
@@ -76,40 +137,42 @@ interface OrderPanelProps {
   balance: number | null;
   onCancel: () => void;
   onSuccess: (msg: string) => void;
-  onError: (msg: string) => void;
+  onError:   (msg: string) => void;
 }
 
 function OrderPanel({ market, outcome, session, balance, onCancel, onSuccess, onError }: OrderPanelProps) {
-  const [preset, setPreset] = useState(10);
-  const [custom, setCustom] = useState('');
+  const [preset,    setPreset]    = useState(10);
+  const [custom,    setCustom]    = useState('');
   const [useCustom, setUseCustom] = useState(false);
   const [orderType, setOrderType] = useState<'FOK' | 'GTC'>('FOK');
-  const [submitting, setSubmitting] = useState(false);
+  const [busy,      setBusy]      = useState(false);
+  const customRef = useRef<HTMLInputElement>(null);
 
-  const idx = outcome === 'Yes' ? 0 : 1;
-  const price = market.outcomePrices[idx] ?? 0.5;
-  const amount = useCustom ? (parseFloat(custom) || 0) : preset;
-  const slippage = orderType === 'FOK' ? 1.05 : 1.0;
-  const estShares = amount > 0 && price > 0
-    ? (amount / (price * slippage)).toFixed(1)
-    : '?';
+  const idx     = outcome === 'Yes' ? 0 : 1;
+  const price   = market.outcomePrices[idx] ?? 0.5;
+  const amount  = useCustom ? (parseFloat(custom) || 0) : preset;
+  const slip    = orderType === 'FOK' ? 1.05 : 1.0;
+  const shares  = amount > 0 && price > 0 ? (amount / (price * slip)).toFixed(2) : '—';
+  const accent  = outcome === 'Yes' ? C.yes : C.no;
+  const accentD = outcome === 'Yes' ? C.yesDim : C.noDim;
+  const lowBal  = balance !== null && amount > 0 && amount > balance;
 
-  const accent = outcome === 'Yes' ? '#059669' : '#dc2626';
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onCancel]);
 
-  const handleConfirm = async () => {
-    if (amount <= 0) return;
-    setSubmitting(true);
+  const submit = async () => {
+    if (amount <= 0 || busy) return;
+    setBusy(true);
     try {
       const params: OrderParams = { outcome, usdcAmount: amount, orderType };
-      const res = await chrome.runtime.sendMessage({
-        type: 'PLACE_ORDER',
-        session,
-        params,
-        market,
-      }) as { type: string; result?: { orderId: string }; error?: string };
+      const res = await chrome.runtime.sendMessage({ type: 'PLACE_ORDER', session, params, market }) as
+        { type: string; result?: { orderId: string }; error?: string };
 
       if (res.type === 'ORDER_SUCCESS') {
-        onSuccess(`${orderType === 'FOK' ? 'Market' : 'Limit'} order placed — ${outcome} ≈${estShares} shares @ $${amount}`);
+        onSuccess(`${orderType === 'FOK' ? 'Market' : 'Limit'} order placed ✓  ${outcome} ≈${shares} shares @ $${amount}`);
       } else if (res.error === 'NO_ETH_PROVIDER') {
         chrome.tabs.create({ url: market.url });
         onSuccess('Opened on Polymarket (social login)');
@@ -119,96 +182,114 @@ function OrderPanel({ market, outcome, session, balance, onCancel, onSuccess, on
     } catch (e) {
       onError((e as Error).message ?? 'Order failed');
     } finally {
-      setSubmitting(false);
+      setBusy(false);
     }
   };
 
   return (
     <div style={{
-      background: outcome === 'Yes' ? '#f0fdf4' : '#fef2f2',
-      border: `1px solid ${accent}33`,
-      borderRadius: 8, padding: '10px 12px', marginTop: 6,
+      marginTop: 10, borderRadius: 10, border: `1px solid ${accent}55`,
+      background: accentD, padding: '12px 14px',
+      animation: 'slideDown .15s ease',
     }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: accent, marginBottom: 8 }}>
-        Buy {outcome} · {Math.round(price * 100)}¢ each
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <span style={{ fontSize: 13, fontWeight: 800, color: accent }}>
+          Buy {outcome} · {Math.round(price * 100)}%
+        </span>
+        <button onClick={onCancel} style={{
+          background: 'none', border: 'none', color: C.muted, cursor: 'pointer',
+          fontSize: 16, lineHeight: 1, padding: '0 4px',
+        }}>×</button>
       </div>
 
-      {/* Amount */}
-      <div style={{ marginBottom: 8 }}>
-        <div style={{ fontSize: 10, color: '#64748b', marginBottom: 4 }}>Amount (USDC)</div>
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-          {PRESET_AMOUNTS.map(a => (
-            <button key={a} onClick={() => { setPreset(a); setUseCustom(false); }} style={{
-              padding: '4px 8px', fontSize: 11, fontWeight: 600, borderRadius: 5, border: 'none', cursor: 'pointer',
-              background: !useCustom && preset === a ? accent : '#e2e8f0',
-              color: !useCustom && preset === a ? 'white' : '#475569',
-            }}>${a}</button>
-          ))}
-          <input
-            type="number" min="1" placeholder="Other"
-            value={custom}
-            onChange={e => { setCustom(e.target.value); setUseCustom(true); }}
-            onFocus={() => setUseCustom(true)}
-            style={{
-              width: 65, padding: '4px 6px', fontSize: 11, borderRadius: 5,
-              border: `1px solid ${useCustom ? accent : '#e2e8f0'}`, outline: 'none', color: '#1e293b',
-            }}
-          />
-        </div>
+      {/* Amount chips */}
+      <div style={{ fontSize: 11, color: C.muted, marginBottom: 6, fontWeight: 600,
+        textTransform: 'uppercase', letterSpacing: '.06em' }}>Amount (USDC)</div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+        {PRESETS.map(a => (
+          <button key={a} onClick={() => { setPreset(a); setUseCustom(false); }}
+            style={chip(!useCustom && preset === a, accent)}>
+            ${a}
+          </button>
+        ))}
+        <input
+          ref={customRef} type="number" min="1" placeholder="Other"
+          value={custom}
+          onChange={e => { setCustom(e.target.value); setUseCustom(true); }}
+          onFocus={() => setUseCustom(true)}
+          style={{
+            width: 68, padding: '5px 8px', fontSize: 11, fontWeight: 700, borderRadius: 20,
+            border: `1px solid ${useCustom ? accent : C.border}`, outline: 'none',
+            background: useCustom ? accentD : 'transparent', color: C.text,
+          }}
+        />
       </div>
 
       {/* Order type */}
-      <div style={{ marginBottom: 10 }}>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {(['FOK', 'GTC'] as const).map(t => (
-            <button key={t} onClick={() => setOrderType(t)} style={{
-              padding: '4px 10px', fontSize: 11, fontWeight: 600, borderRadius: 5, border: 'none', cursor: 'pointer',
-              background: orderType === t ? '#0d9488' : '#e2e8f0',
-              color: orderType === t ? 'white' : '#475569',
+      <div style={{ fontSize: 11, color: C.muted, marginBottom: 6, fontWeight: 600,
+        textTransform: 'uppercase', letterSpacing: '.06em' }}>Order type</div>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+        {(['FOK', 'GTC'] as const).map(t => (
+          <button key={t} onClick={() => setOrderType(t)}
+            style={{
+              ...chip(orderType === t, C.brand),
+              borderRadius: 7, padding: '6px 14px',
             }}>
-              {t === 'FOK' ? 'Market order' : `Limit ${Math.round(price * 100)}¢`}
-            </button>
-          ))}
-        </div>
-        <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>
-          {orderType === 'FOK'
-            ? 'Fills immediately at best available price (≤5% slippage)'
-            : 'Resting limit — fills when a matching ask appears'}
-        </div>
+            {t === 'FOK' ? '⚡ Market (fill now)' : `📌 Limit ${Math.round(price * 100)}%`}
+          </button>
+        ))}
+      </div>
+      <div style={{ fontSize: 10, color: C.muted, marginBottom: 12, lineHeight: 1.5 }}>
+        {orderType === 'FOK'
+          ? 'Fills immediately at best available price · up to 5% slippage allowed'
+          : `Resting limit at ${Math.round(price * 100)}% · fills when matched`}
       </div>
 
       {/* Summary */}
       {amount > 0 && (
-        <div style={{ fontSize: 11, background: 'white', borderRadius: 5, padding: '5px 8px', marginBottom: 8, color: '#475569' }}>
-          Spend <strong>${amount}</strong> → get ≈<strong>{estShares}</strong> {outcome} shares
-          {balance !== null && amount > balance && (
-            <div style={{ color: '#dc2626', fontSize: 10, marginTop: 2 }}>
-              ⚠ Low balance (${balance.toFixed(2)} available)
-            </div>
-          )}
+        <div style={{
+          background: C.card, border: `1px solid ${C.border}`,
+          borderRadius: 8, padding: '8px 12px', marginBottom: 12,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <span style={{ fontSize: 12, color: C.textMid }}>You spend</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>${amount} USDC</span>
+          <span style={{ fontSize: 12, color: C.muted }}>→</span>
+          <span style={{ fontSize: 12, color: C.textMid }}>You get ≈</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: accent }}>{shares} shares</span>
         </div>
       )}
 
-      {/* Buttons */}
-      <div style={{ display: 'flex', gap: 6 }}>
+      {/* Low balance warning */}
+      {lowBal && (
+        <div style={{ fontSize: 11, color: C.amber, background: C.amberDim,
+          border: `1px solid ${C.amber}44`, borderRadius: 6, padding: '6px 10px', marginBottom: 10 }}>
+          ⚠ Balance ${balance!.toFixed(2)} may be insufficient
+        </div>
+      )}
+
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={onCancel} style={{
-          flex: 1, padding: '7px', fontSize: 12, borderRadius: 6,
-          border: '1px solid #e2e8f0', background: 'white', color: '#64748b', cursor: 'pointer',
+          flex: 1, padding: '9px', fontSize: 12, fontWeight: 600, borderRadius: 8,
+          border: `1px solid ${C.border}`, background: 'transparent', color: C.textMid, cursor: 'pointer',
         }}>Cancel</button>
-        <button onClick={handleConfirm} disabled={submitting || amount <= 0} style={{
-          flex: 2, padding: '7px', fontSize: 12, fontWeight: 700, borderRadius: 6, border: 'none',
-          background: submitting || amount <= 0 ? '#94a3b8' : accent,
-          color: 'white', cursor: submitting || amount <= 0 ? 'not-allowed' : 'pointer',
-        }}>
-          {submitting ? '⏳ Signing…' : `Confirm Buy ${outcome}`}
+        <button onClick={submit} disabled={busy || amount <= 0 || lowBal === true}
+          style={{
+            flex: 2.5, padding: '9px', fontSize: 13, fontWeight: 800, borderRadius: 8,
+            border: 'none', cursor: busy || amount <= 0 ? 'not-allowed' : 'pointer',
+            background: busy || amount <= 0 ? C.muted : accent, color: '#fff',
+            opacity: busy ? 0.7 : 1, transition: 'opacity .15s',
+          }}>
+          {busy ? '⏳ Awaiting wallet…' : `Confirm Buy ${outcome}`}
         </button>
       </div>
     </div>
   );
 }
 
-// ─── Market Card ──────────────────────────────────────────────────────────
-
+// ─── Market Card ──────────────────────────────────────────────────────────────
 function MarketCard({
   market, session, activeOrder, balance, onBuy, onCancel, onSuccess, onError,
 }: {
@@ -216,64 +297,106 @@ function MarketCard({
   session: PolySession | null;
   activeOrder: { marketId: string; outcome: 'Yes' | 'No' } | null;
   balance: number | null;
-  onBuy: (mkt: PolymarketMarket, outcome: 'Yes' | 'No') => void;
+  onBuy:    (m: PolymarketMarket, o: 'Yes' | 'No') => void;
   onCancel: () => void;
   onSuccess: (msg: string) => void;
-  onError: (msg: string) => void;
+  onError:   (msg: string) => void;
 }) {
-  const isBinary = market.outcomes.length === 2 && market.outcomes[0]?.toLowerCase() === 'yes';
-  const isOpen = activeOrder?.marketId === market.id;
+  const [hover, setHover] = useState(false);
+  const binary  = market.outcomes.length === 2 && market.outcomes[0]?.toLowerCase() === 'yes';
+  const isOpen  = activeOrder?.marketId === market.id;
+  const yPct    = Math.round((market.outcomePrices[0] ?? 0.5) * 100);
+  const nPct    = 100 - yPct;
 
   return (
-    <div style={{ background: 'white', borderRadius: 8, padding: '10px 12px', marginBottom: 8, border: '1px solid #e2e8f0' }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: '#1e293b', lineHeight: 1.4, marginBottom: 6, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>
+    <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        background: hover ? C.cardHover : C.card,
+        border: `1px solid ${isOpen ? C.borderLight : C.border}`,
+        borderRadius: 12, padding: '12px 14px', marginBottom: 8,
+        transition: 'background .15s, border-color .15s',
+      }}
+    >
+      {/* Question */}
+      <div style={{
+        fontSize: 13, fontWeight: 600, color: C.text, lineHeight: 1.45,
+        marginBottom: 10, display: '-webkit-box', WebkitLineClamp: 3,
+        WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
+      }}>
         {market.question}
       </div>
 
       <OddsBar outcomes={market.outcomes} prices={market.outcomePrices} />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#94a3b8' }}>
-        <span>📊 {fmtVol(market.volume24hr || market.volume)}</span>
-        {market.endDate && <span>· ⏱ {fmtTimeLeft(market.endDate)}</span>}
-        <span style={{ flex: 1 }} />
-        {isBinary && session ? (
-          <>
+      {/* Footer row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 11, color: C.muted, fontWeight: 500 }}>
+          📊 {fmtVol(market.volume24hr || market.volume)}
+        </span>
+        {market.endDate && (
+          <span style={{ fontSize: 11, color: C.muted }}>
+            · ⏱ {fmtTimeLeft(market.endDate)}
+          </span>
+        )}
+        <div style={{ flex: 1 }} />
+
+        {/* Quick buy buttons (binary markets + logged in) */}
+        {binary && session ? (
+          <div style={{ display: 'flex', gap: 5 }}>
             <button onClick={() => onBuy(market, 'Yes')} style={{
-              fontSize: 10, fontWeight: 700, background: '#059669', color: 'white',
-              borderRadius: 4, padding: '3px 7px', border: 'none', cursor: 'pointer',
-            }}>YES {Math.round((market.outcomePrices[0] ?? 0.5) * 100)}¢</button>
+              fontSize: 11, fontWeight: 800, background: isOpen && activeOrder?.outcome === 'Yes' ? C.yes : C.yesDim,
+              color: C.yes, border: `1px solid ${C.yes}55`, borderRadius: 6,
+              padding: '4px 10px', cursor: 'pointer', transition: 'background .15s',
+            }}>YES {yPct}%</button>
             <button onClick={() => onBuy(market, 'No')} style={{
-              fontSize: 10, fontWeight: 700, background: '#dc2626', color: 'white',
-              borderRadius: 4, padding: '3px 7px', border: 'none', cursor: 'pointer',
-            }}>NO {Math.round((market.outcomePrices[1] ?? 0.5) * 100)}¢</button>
-          </>
+              fontSize: 11, fontWeight: 800, background: isOpen && activeOrder?.outcome === 'No' ? C.no : C.noDim,
+              color: C.no, border: `1px solid ${C.no}55`, borderRadius: 6,
+              padding: '4px 10px', cursor: 'pointer', transition: 'background .15s',
+            }}>NO {nPct}%</button>
+          </div>
         ) : (
           <a href={market.url} target="_blank" rel="noopener noreferrer" style={{
-            fontSize: 10, fontWeight: 700, background: '#0d9488', color: 'white',
-            borderRadius: 4, padding: '3px 8px', textDecoration: 'none',
-          }}>View ↗</a>
+            fontSize: 11, fontWeight: 700, background: C.brandDim,
+            color: C.brand, border: `1px solid ${C.brand}44`, borderRadius: 6,
+            padding: '4px 10px', textDecoration: 'none',
+          }}>Trade ↗</a>
         )}
       </div>
 
+      {/* Order panel */}
       {isOpen && session && (
         <OrderPanel
-          market={market}
-          outcome={activeOrder!.outcome}
-          session={session}
-          balance={balance}
-          onCancel={onCancel}
-          onSuccess={onSuccess}
-          onError={onError}
+          market={market} outcome={activeOrder!.outcome}
+          session={session} balance={balance}
+          onCancel={onCancel} onSuccess={onSuccess} onError={onError}
         />
       )}
     </div>
   );
 }
 
-// ─── Session Panel ────────────────────────────────────────────────────────
+// ─── Skeleton loader ──────────────────────────────────────────────────────────
+function SkeletonCard() {
+  return (
+    <div style={{ background: C.card, borderRadius: 12, padding: '12px 14px', marginBottom: 8, border: `1px solid ${C.border}` }}>
+      {[80, 95, 60].map((w, i) => (
+        <div key={i} style={{ height: 12, borderRadius: 6, background: C.border, marginBottom: 8, width: `${w}%`,
+          animation: 'pulse 1.6s ease-in-out infinite', animationDelay: `${i * 0.15}s` }} />
+      ))}
+      <div style={{ height: 5, borderRadius: 4, background: C.border, marginBottom: 10 }} />
+      <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ height: 26, width: 70, borderRadius: 6, background: C.border }} />
+        <div style={{ height: 26, width: 70, borderRadius: 6, background: C.border }} />
+      </div>
+    </div>
+  );
+}
 
+// ─── Session Panel ────────────────────────────────────────────────────────────
 function SessionPanel({
-  session, loading: sLoading, noTab, balance, onRefresh,
+  session, loading, noTab, balance, onRefresh,
 }: {
   session: PolySession | null;
   loading: boolean;
@@ -281,31 +404,35 @@ function SessionPanel({
   balance: number | null;
   onRefresh: () => void;
 }) {
-  if (sLoading) {
+  if (loading) {
     return (
-      <div style={{ padding: '10px 12px', background: '#fafafa', borderBottom: '1px solid #f1f5f9', fontSize: 11, color: '#94a3b8' }}>
-        Checking Polymarket session…
+      <div style={{ padding: '10px 16px', background: C.panel, borderBottom: `1px solid ${C.border}`,
+        fontSize: 12, color: C.muted, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.muted,
+          animation: 'pulse 1.4s infinite' }} />
+        Checking session…
       </div>
     );
   }
 
   if (!session) {
     return (
-      <div style={{ padding: '10px 12px', background: '#fffbeb', borderBottom: '1px solid #fde68a' }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>Not connected</div>
-        <div style={{ fontSize: 10, color: '#78350f', marginBottom: 8, lineHeight: 1.5 }}>
-          {noTab
-            ? 'Open polymarket.com in any tab and log in — any login method works (MetaMask, Google, email…)'
-            : 'Log in at polymarket.com — any login method works (MetaMask, Google, email…)'}
+      <div style={{ padding: '12px 16px', background: C.amberDim, borderBottom: `1px solid ${C.amber}44` }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: C.amber, marginBottom: 4 }}>
+          Not connected to Polymarket
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ fontSize: 11, color: C.textMid, marginBottom: 10, lineHeight: 1.55 }}>
+          {noTab
+            ? 'Open polymarket.com in any tab and log in. All login methods work.'
+            : 'Log in at polymarket.com — MetaMask, Coinbase, WalletConnect, Google, email all work.'}
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => chrome.tabs.create({ url: 'https://polymarket.com' })} style={{
-            flex: 1, padding: '6px', fontSize: 11, fontWeight: 600,
-            background: '#d97706', color: 'white', border: 'none', borderRadius: 5, cursor: 'pointer',
-          }}>Open Polymarket</button>
+            ...btn(C.amber), flex: 1, padding: '8px', fontSize: 12,
+          }}>Open Polymarket ↗</button>
           <button onClick={onRefresh} style={{
-            padding: '6px 10px', fontSize: 11, background: 'white', color: '#64748b',
-            border: '1px solid #e2e8f0', borderRadius: 5, cursor: 'pointer',
+            padding: '8px 14px', fontSize: 12, fontWeight: 600, borderRadius: 8,
+            border: `1px solid ${C.border}`, background: 'transparent', color: C.textMid, cursor: 'pointer',
           }}>Retry</button>
         </div>
       </div>
@@ -313,60 +440,86 @@ function SessionPanel({
   }
 
   return (
-    <div style={{ padding: '8px 12px', background: '#f0fdf4', borderBottom: '1px solid #bbf7d0' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block', flexShrink: 0 }} />
-        <span style={{ fontSize: 11, fontWeight: 700, color: '#166534', fontFamily: 'monospace' }}>
+    <div style={{
+      padding: '9px 16px', background: C.panel, borderBottom: `1px solid ${C.border}`,
+      display: 'flex', alignItems: 'center', gap: 10,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.green,
+          display: 'inline-block', flexShrink: 0, boxShadow: `0 0 6px ${C.green}88` }} />
+        <span style={{ fontSize: 12, fontWeight: 700, color: C.text, fontFamily: 'monospace' }}>
           {shortAddr(session.address)}
         </span>
-        {balance !== null && (
-          <span style={{ fontSize: 10, color: '#64748b' }}>
-            · <strong style={{ color: '#059669' }}>${balance.toFixed(2)}</strong>
-          </span>
-        )}
-        <span style={{ flex: 1 }} />
-        {!session.hasEthProvider && (
-          <span style={{ fontSize: 9, color: '#d97706', background: '#fffbeb', borderRadius: 4, padding: '2px 5px', border: '1px solid #fde68a' }}>
-            Social login
-          </span>
-        )}
-        <button onClick={onRefresh} style={{ fontSize: 11, color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer' }}>↻</button>
       </div>
-      {!session.hasEthProvider && (
-        <div style={{ fontSize: 10, color: '#78350f', marginTop: 3 }}>
-          Social login — clicking Buy will open the market on Polymarket
+      {balance !== null && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <div style={{ width: 1, height: 14, background: C.border }} />
+          <span style={{ fontSize: 12, fontWeight: 800, color: C.yes }}>${balance.toFixed(2)}</span>
+          <span style={{ fontSize: 11, color: C.muted }}>USDC</span>
         </div>
       )}
+      {!session.hasEthProvider && (
+        <>
+          <div style={{ width: 1, height: 14, background: C.border }} />
+          <span style={{ fontSize: 10, fontWeight: 700, color: C.amber,
+            background: C.amberDim, borderRadius: 20, padding: '2px 8px', border: `1px solid ${C.amber}44` }}>
+            Social login
+          </span>
+        </>
+      )}
+      <div style={{ flex: 1 }} />
+      <button onClick={onRefresh} title="Refresh session" style={{
+        background: 'none', border: 'none', color: C.muted, cursor: 'pointer',
+        fontSize: 14, padding: '2px 4px', transition: 'color .15s',
+      }}>↻</button>
     </div>
   );
 }
 
-// ─── Root App ─────────────────────────────────────────────────────────────
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function Toast({ ok, msg }: { ok: boolean; msg: string }) {
+  return (
+    <div style={{
+      padding: '10px 16px', fontSize: 12, fontWeight: 600,
+      background: ok ? C.yesDim : C.noDim,
+      color: ok ? C.yes : C.no,
+      borderBottom: `1px solid ${ok ? C.yes : C.no}44`,
+      display: 'flex', alignItems: 'center', gap: 8,
+      animation: 'slideDown .2s ease',
+    }}>
+      <span>{ok ? '✓' : '⚠'}</span>
+      <span style={{ flex: 1 }}>{msg}</span>
+    </div>
+  );
+}
 
+// ─── Root App ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [session, setSession] = useState<PolySession | null>(null);
+  const [session,        setSession]        = useState<PolySession | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
-  const [noTab, setNoTab] = useState(false);
-  const [balance, setBalance] = useState<number | null>(null);
+  const [noTab,          setNoTab]          = useState(false);
+  const [balance,        setBalance]        = useState<number | null>(null);
 
-  const [query, setQuery] = useState('');
-  const [markets, setMarkets] = useState<PolymarketMarket[]>([]);
-  const [searching, setSearching] = useState(false);
+  const [query,       setQuery]       = useState('');
+  const [markets,     setMarkets]     = useState<PolymarketMarket[]>([]);
+  const [searching,   setSearching]   = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [searched, setSearched] = useState(false);
+  const [searched,    setSearched]    = useState(false);
+
+  const [recents,   setRecents]   = useState<string[]>([]);
+  const [showHints, setShowHints] = useState(false);
 
   const [activeOrder, setActiveOrder] = useState<{ marketId: string; outcome: 'Yes' | 'No' } | null>(null);
-  const [toast, setToast] = useState<{ ok: boolean; msg: string } | null>(null);
-  const toastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [toast,       setToast]       = useState<{ ok: boolean; msg: string } | null>(null);
+  const toastRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchRef  = useRef<HTMLInputElement>(null);
 
-  // ── Load session ────────────────────────────────────────────────────
-
+  // ── Load session ────────────────────────────────────────────────────────────
   const loadSession = useCallback(async () => {
     setSessionLoading(true);
     try {
-      const res = await chrome.runtime.sendMessage({ type: 'GET_SESSION' }) as {
-        type: string; session: PolySession | null; noTab: boolean;
-      };
+      const res = await chrome.runtime.sendMessage({ type: 'GET_SESSION' }) as
+        { type: string; session: PolySession | null; noTab: boolean };
       setSession(res.session ?? null);
       setNoTab(res.noTab ?? false);
       if (res.session) {
@@ -381,26 +534,51 @@ export default function App() {
     }
   }, []);
 
-  useEffect(() => { loadSession(); }, [loadSession]);
+  // ── Load recent searches ────────────────────────────────────────────────────
+  useEffect(() => {
+    chrome.storage.local.get('pm_recents', d => setRecents(d.pm_recents ?? []));
+  }, []);
 
-  // ── Toast helper ────────────────────────────────────────────────────
+  const saveRecent = useCallback((q: string) => {
+    setRecents(prev => {
+      const next = [q, ...prev.filter(r => r !== q)].slice(0, 6);
+      chrome.storage.local.set({ pm_recents: next });
+      return next;
+    });
+  }, []);
 
+  // ── Auto-search from active tab on open ─────────────────────────────────────
+  useEffect(() => {
+    loadSession();
+    chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
+      const tab = tabs[0];
+      if (!tab?.title || tab.url?.includes('polymarket.com')) return;
+      const kw = keywordsFromTitle(tab.title);
+      if (!kw) return;
+      setQuery(kw);
+      doSearch(kw);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Toast helper ─────────────────────────────────────────────────────────────
   const showToast = useCallback((ok: boolean, msg: string) => {
     setToast({ ok, msg });
     setActiveOrder(null);
     if (toastRef.current) clearTimeout(toastRef.current);
-    toastRef.current = setTimeout(() => setToast(null), 4_500);
+    toastRef.current = setTimeout(() => setToast(null), 5_000);
   }, []);
 
-  // ── Search ──────────────────────────────────────────────────────────
-
-  const handleSearch = useCallback(async (q: string) => {
+  // ── Search ────────────────────────────────────────────────────────────────────
+  const doSearch = useCallback(async (q: string) => {
     const trimmed = q.trim();
     if (!trimmed) return;
     setSearching(true);
     setSearchError(null);
     setSearched(true);
     setActiveOrder(null);
+    setShowHints(false);
+    saveRecent(trimmed);
     try {
       const res = await chrome.runtime.sendMessage({
         type: 'SEARCH_MARKETS',
@@ -413,102 +591,219 @@ export default function App() {
     } finally {
       setSearching(false);
     }
-  }, []);
+  }, [saveRecent]);
 
-  // ── Render ──────────────────────────────────────────────────────────
+  const handleSearchKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') doSearch(query);
+    if (e.key === 'Escape') { setShowHints(false); (e.target as HTMLInputElement).blur(); }
+  };
 
+  // ── Render ────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
-      {/* Header */}
-      <div style={{ background: '#0d9488', color: 'white', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 18 }}>🎯</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: 700 }}>Polymarket Radar</div>
-          <div style={{ fontSize: 10, opacity: 0.8 }}>Quick orders via your Polymarket session</div>
-        </div>
-        {session && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(255,255,255,.15)', borderRadius: 20, padding: '3px 8px' }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ade80', display: 'inline-block' }} />
-            <span style={{ fontSize: 10, fontWeight: 600 }}>{shortAddr(session.address)}</span>
-          </div>
-        )}
-      </div>
+    <>
+      {/* Global keyframes */}
+      <style>{`
+        @keyframes slideDown { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:none } }
+        @keyframes pulse     { 0%,100% { opacity:.4 } 50% { opacity:1 } }
+        * { box-sizing:border-box; }
+        body { margin:0; background:${C.bg}; }
+        ::-webkit-scrollbar { width:4px }
+        ::-webkit-scrollbar-track { background:transparent }
+        ::-webkit-scrollbar-thumb { background:${C.border}; border-radius:4px }
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none }
+      `}</style>
 
-      <SessionPanel session={session} loading={sessionLoading} noTab={noTab} balance={balance} onRefresh={loadSession} />
+      <div style={{ fontFamily: FONT, background: C.bg, color: C.text, width: 400, minHeight: 200 }}>
 
-      {toast && (
+        {/* ── Header ── */}
         <div style={{
-          padding: '8px 12px', fontSize: 11, fontWeight: 600,
-          background: toast.ok ? '#f0fdf4' : '#fef2f2',
-          color: toast.ok ? '#166534' : '#dc2626',
-          borderBottom: `1px solid ${toast.ok ? '#bbf7d0' : '#fecaca'}`,
+          background: C.panel, borderBottom: `1px solid ${C.border}`,
+          padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10,
         }}>
-          {toast.ok ? '✓ ' : '⚠ '}{toast.msg}
-        </div>
-      )}
-
-      {/* Search */}
-      <div style={{ padding: '10px 12px', background: 'white', borderBottom: '1px solid #f1f5f9' }}>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <input
-            type="text" value={query} placeholder="Search topic (e.g. bitcoin, election…)"
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSearch(query)}
-            style={{ flex: 1, padding: '7px 10px', fontSize: 12, border: '1px solid #e2e8f0', borderRadius: 6, outline: 'none', color: '#1e293b' }}
-          />
-          <button onClick={() => handleSearch(query)} disabled={searching} style={{
-            background: '#0d9488', color: 'white', border: 'none', borderRadius: 6,
-            padding: '7px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600, opacity: searching ? 0.7 : 1,
-          }}>
-            {searching ? '…' : 'Search'}
-          </button>
-        </div>
-      </div>
-
-      {/* Results */}
-      <div style={{ padding: '10px 12px', maxHeight: 380, overflowY: 'auto' }}>
-        {searching && (
-          <div style={{ textAlign: 'center', padding: '24px 0', color: '#94a3b8', fontSize: 12 }}>
-            <div style={{ fontSize: 20, marginBottom: 8 }}>⏳</div>Searching Polymarket…
-          </div>
-        )}
-        {searchError && (
-          <div style={{ textAlign: 'center', padding: '16px 0', color: '#dc2626', fontSize: 12 }}>⚠️ {searchError}</div>
-        )}
-        {!searching && searched && markets.length === 0 && !searchError && (
-          <div style={{ textAlign: 'center', padding: '24px 0', color: '#94a3b8', fontSize: 12 }}>
-            <div style={{ fontSize: 20, marginBottom: 8 }}>🔍</div>No active markets found
-          </div>
-        )}
-        {!searching && markets.map(m => (
-          <MarketCard
-            key={m.id} market={m} session={session} activeOrder={activeOrder} balance={balance}
-            onBuy={(mkt, outcome) => setActiveOrder({ marketId: mkt.id, outcome })}
-            onCancel={() => setActiveOrder(null)}
-            onSuccess={msg => showToast(true, msg)}
-            onError={msg => showToast(false, msg)}
-          />
-        ))}
-        {!searched && !searching && (
-          <div style={{ textAlign: 'center', padding: '24px 16px', color: '#94a3b8', fontSize: 12 }}>
-            <div style={{ fontSize: 28, marginBottom: 10 }}>🎯</div>
-            <div style={{ fontWeight: 600, color: '#64748b', marginBottom: 4 }}>Search any topic</div>
-            <div style={{ lineHeight: 1.6 }}>
-              {session
-                ? 'Find a market → click YES/NO to place quick orders'
-                : 'Log in at polymarket.com, then search to quick-order'}
+          <div style={{
+            width: 32, height: 32, borderRadius: 8,
+            background: 'linear-gradient(135deg, #6170FF, #0AC18E)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 16, flexShrink: 0,
+          }}>🎯</div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: C.text, letterSpacing: '-.01em' }}>
+              Polymarket Radar
+            </div>
+            <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>
+              Quick orders via your session
             </div>
           </div>
-        )}
-      </div>
+          <div style={{ flex: 1 }} />
+          {session && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: C.yesDim, border: `1px solid ${C.yes}33`,
+              borderRadius: 20, padding: '4px 10px',
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.green,
+                display: 'inline-block', boxShadow: `0 0 5px ${C.green}` }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: C.yes, fontFamily: 'monospace' }}>
+                {shortAddr(session.address)}
+              </span>
+            </div>
+          )}
+        </div>
 
-      {/* Footer */}
-      <div style={{ padding: '8px 12px', borderTop: '1px solid #f1f5f9', fontSize: 10, color: '#cbd5e1', textAlign: 'center' }}>
-        Orders via your existing Polymarket session ·{' '}
-        <a href="https://polymarket.com" target="_blank" rel="noopener" style={{ color: '#0d9488', textDecoration: 'none', fontWeight: 600 }}>
-          polymarket.com
-        </a>
+        {/* ── Session status ── */}
+        <SessionPanel session={session} loading={sessionLoading} noTab={noTab}
+          balance={balance} onRefresh={loadSession} />
+
+        {/* ── Toast ── */}
+        {toast && <Toast ok={toast.ok} msg={toast.msg} />}
+
+        {/* ── Search ── */}
+        <div style={{ padding: '12px 16px', background: C.panel, borderBottom: `1px solid ${C.border}` }}>
+          <div style={{ position: 'relative' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: C.card, border: `1px solid ${C.border}`,
+              borderRadius: 10, padding: '0 12px', transition: 'border-color .15s',
+            }}>
+              <span style={{ fontSize: 14, color: C.muted, flexShrink: 0 }}>🔍</span>
+              <input
+                ref={searchRef}
+                type="text" value={query}
+                placeholder="Search any topic…"
+                onChange={e => setQuery(e.target.value)}
+                onKeyDown={handleSearchKey}
+                onFocus={() => setShowHints(recents.length > 0)}
+                onBlur={() => setTimeout(() => setShowHints(false), 150)}
+                style={{
+                  flex: 1, background: 'none', border: 'none', outline: 'none',
+                  fontSize: 13, color: C.text, padding: '10px 0', fontFamily: FONT,
+                }}
+              />
+              {query && (
+                <button onClick={() => { setQuery(''); setSearched(false); setMarkets([]); searchRef.current?.focus(); }}
+                  style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', padding: '0 2px', fontSize: 16 }}>
+                  ×
+                </button>
+              )}
+            </div>
+
+            {/* Recent searches dropdown */}
+            {showHints && recents.length > 0 && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                background: C.card, border: `1px solid ${C.border}`, borderRadius: 10,
+                marginTop: 4, overflow: 'hidden',
+                boxShadow: '0 8px 24px rgba(0,0,0,.5)',
+              }}>
+                <div style={{ padding: '6px 12px', fontSize: 10, color: C.muted,
+                  textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600 }}>
+                  Recent
+                </div>
+                {recents.map(r => (
+                  <button key={r} onClick={() => { setQuery(r); doSearch(r); }}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left',
+                      padding: '8px 14px', fontSize: 13, color: C.textMid,
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      borderTop: `1px solid ${C.border}`,
+                      transition: 'background .1s',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = C.cardHover)}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                  >
+                    🕐 {r}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button onClick={() => doSearch(query)} disabled={searching || !query.trim()}
+            style={{
+              ...btn(C.brand, true), marginTop: 8, opacity: searching || !query.trim() ? 0.5 : 1,
+              cursor: searching || !query.trim() ? 'not-allowed' : 'pointer',
+            }}>
+            {searching ? 'Searching…' : 'Search Markets'}
+          </button>
+        </div>
+
+        {/* ── Results ── */}
+        <div style={{ padding: '10px 12px', maxHeight: 400, overflowY: 'auto' }}>
+          {/* Skeleton while loading */}
+          {searching && [1, 2, 3].map(i => <SkeletonCard key={i} />)}
+
+          {/* Error */}
+          {searchError && !searching && (
+            <div style={{
+              textAlign: 'center', padding: '20px 16px', color: C.no,
+              fontSize: 13, background: C.noDim, borderRadius: 10,
+              border: `1px solid ${C.no}33`,
+            }}>
+              ⚠ {searchError}
+            </div>
+          )}
+
+          {/* No results */}
+          {!searching && searched && markets.length === 0 && !searchError && (
+            <div style={{ textAlign: 'center', padding: '28px 16px', color: C.muted }}>
+              <div style={{ fontSize: 28, marginBottom: 10 }}>🔍</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: C.textMid }}>No active markets found</div>
+              <div style={{ fontSize: 12, marginTop: 4 }}>Try different keywords</div>
+            </div>
+          )}
+
+          {/* Market cards */}
+          {!searching && markets.map(m => (
+            <MarketCard key={m.id} market={m} session={session}
+              activeOrder={activeOrder} balance={balance}
+              onBuy={(mkt, o) => {
+                setActiveOrder(prev =>
+                  prev?.marketId === mkt.id && prev.outcome === o ? null : { marketId: mkt.id, outcome: o }
+                );
+              }}
+              onCancel={() => setActiveOrder(null)}
+              onSuccess={msg => showToast(true, msg)}
+              onError={msg => showToast(false, msg)}
+            />
+          ))}
+
+          {/* Empty state */}
+          {!searched && !searching && (
+            <div style={{ textAlign: 'center', padding: '32px 20px', color: C.muted }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>📡</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>
+                Search any topic
+              </div>
+              <div style={{ fontSize: 12, lineHeight: 1.65 }}>
+                {session
+                  ? 'Find a market, then click YES% or NO% to quick-order directly from here'
+                  : 'Log in at polymarket.com first, then search to place orders'}
+              </div>
+              {!session && (
+                <button onClick={() => chrome.tabs.create({ url: 'https://polymarket.com' })}
+                  style={{ ...btn(C.brand), marginTop: 16, fontSize: 12 }}>
+                  Open Polymarket ↗
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── Footer ── */}
+        <div style={{
+          padding: '8px 16px', borderTop: `1px solid ${C.border}`,
+          background: C.panel,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <span style={{ fontSize: 10, color: C.muted }}>
+            {searched && !searching ? `${markets.length} market${markets.length !== 1 ? 's' : ''}` : 'Polymarket Radar v1.1'}
+          </span>
+          <a href="https://polymarket.com" target="_blank" rel="noopener"
+            style={{ fontSize: 10, color: C.brand, fontWeight: 700, textDecoration: 'none' }}>
+            polymarket.com ↗
+          </a>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
