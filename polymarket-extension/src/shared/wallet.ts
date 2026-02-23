@@ -5,8 +5,18 @@
  * All EIP-712 signing is done via MetaMask (no private key stored in extension).
  */
 
-import type { WalletState, ClobOrderPayload } from './types';
+import type { ClobOrderPayload } from './types';
 import type { PolymarketMarket } from './types';
+
+// Legacy WalletState — kept for reference, superseded by PolySession
+interface WalletState {
+  connected: boolean;
+  address: string;
+  apiKey: string;
+  secret: string;
+  passphrase: string;
+  chainId: number;
+}
 import { deriveApiKey } from './clob-client';
 
 const POLYGON_CHAIN_ID = '0x89';      // 137 decimal

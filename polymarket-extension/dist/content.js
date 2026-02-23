@@ -918,213 +918,9 @@ var PolymarketRadar = (() => {
     }
   };
 
-  // src/shared/clob-client.ts
-  var CLOB_BASE = "https://clob.polymarket.com";
-  async function deriveApiKey(address, l1Signature, timestamp, nonce = "0") {
-    const res = await fetch(`${CLOB_BASE}/auth/derive-api-key`, {
-      method: "GET",
-      headers: {
-        POLY_ADDRESS: address,
-        POLY_SIGNATURE: l1Signature,
-        POLY_TIMESTAMP: timestamp,
-        POLY_NONCE: nonce
-      }
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`L1 auth failed (${res.status}): ${text}`);
-    }
-    const data = await res.json();
-    return {
-      apiKey: data.apiKey ?? data.api_key,
-      secret: data.secret,
-      passphrase: data.passphrase
-    };
-  }
-
-  // src/shared/wallet.ts
-  var POLYGON_CHAIN_ID = "0x89";
-  var POLYGON_CHAIN_ID_NUM = 137;
-  var CLOB_AUTH_DOMAIN = {
-    name: "ClobAuthDomain",
-    version: "1",
-    chainId: POLYGON_CHAIN_ID_NUM
-  };
-  var CLOB_AUTH_TYPES = {
-    ClobAuth: [
-      { name: "address", type: "address" },
-      { name: "timestamp", type: "string" },
-      { name: "nonce", type: "string" },
-      { name: "message", type: "string" }
-    ]
-  };
-  var CTF_EXCHANGE = "0x4bFb41d5B3570DeFd03C39a9A4D8dE6Bd8B8982e";
-  var NEG_RISK_CTF_EXCHANGE = "0xC5d563A36AE78145C45a50134d48A1a293c969E1";
-  var ORDER_TYPES = {
-    Order: [
-      { name: "salt", type: "uint256" },
-      { name: "maker", type: "address" },
-      { name: "signer", type: "address" },
-      { name: "taker", type: "address" },
-      { name: "tokenId", type: "uint256" },
-      { name: "makerAmount", type: "uint256" },
-      { name: "takerAmount", type: "uint256" },
-      { name: "expiration", type: "uint256" },
-      { name: "nonce", type: "uint256" },
-      { name: "feeRateBps", type: "uint256" },
-      { name: "side", type: "uint8" },
-      { name: "signatureType", type: "uint8" }
-    ]
-  };
-  function ethereum() {
-    if (!window.ethereum) throw new Error("MetaMask not found. Please install MetaMask.");
-    return window.ethereum;
-  }
-  function randomSalt() {
-    const bytes = new Uint8Array(32);
-    crypto.getRandomValues(bytes);
-    let n = 0n;
-    for (const b of bytes) n = n << 8n | BigInt(b);
-    return String(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
-  }
-  async function connectWallet() {
-    const eth = ethereum();
-    const accounts = await eth.request({
-      method: "eth_requestAccounts"
-    });
-    if (!accounts || accounts.length === 0) throw new Error("No accounts returned");
-    return accounts[0].toLowerCase();
-  }
-  async function getChainId() {
-    const eth = ethereum();
-    return await eth.request({ method: "eth_chainId" });
-  }
-  async function switchToPolygon() {
-    const eth = ethereum();
-    try {
-      await eth.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: POLYGON_CHAIN_ID }]
-      });
-    } catch (err) {
-      const error = err;
-      if (error.code === 4902) {
-        await eth.request({
-          method: "wallet_addEthereumChain",
-          params: [
-            {
-              chainId: POLYGON_CHAIN_ID,
-              chainName: "Polygon Mainnet",
-              nativeCurrency: { name: "MATIC", symbol: "MATIC", decimals: 18 },
-              rpcUrls: ["https://polygon-rpc.com"],
-              blockExplorerUrls: ["https://polygonscan.com"]
-            }
-          ]
-        });
-      } else {
-        throw err;
-      }
-    }
-  }
-  async function authenticateWallet(address) {
-    const eth = ethereum();
-    const timestamp = String(Math.floor(Date.now() / 1e3));
-    const nonce = "0";
-    const typedData = {
-      domain: CLOB_AUTH_DOMAIN,
-      types: { ClobAuth: CLOB_AUTH_TYPES.ClobAuth },
-      primaryType: "ClobAuth",
-      message: {
-        address,
-        timestamp,
-        nonce,
-        message: "This message attests that I control the given wallet"
-      }
-    };
-    const signature = await eth.request({
-      method: "eth_signTypedData_v4",
-      params: [address, JSON.stringify(typedData)]
-    });
-    const { apiKey, secret, passphrase } = await deriveApiKey(
-      address,
-      signature,
-      timestamp,
-      nonce
-    );
-    return {
-      connected: true,
-      address,
-      apiKey,
-      secret,
-      passphrase,
-      chainId: POLYGON_CHAIN_ID_NUM
-    };
-  }
-  async function buildAndSignOrder(wallet, market, outcome, usdcAmount) {
-    const eth = ethereum();
-    const outcomeIndex = outcome === "Yes" ? 0 : 1;
-    const price = market.outcomePrices[outcomeIndex] ?? 0.5;
-    const tokenId = market.clobTokenIds[outcomeIndex];
-    if (!tokenId) {
-      throw new Error(
-        `No CLOB token ID found for ${outcome} on this market. It may not support in-extension trading. Open on Polymarket instead.`
-      );
-    }
-    const makerAmountBN = BigInt(Math.round(usdcAmount * 1e6));
-    const priceMicro = BigInt(Math.round(price * 1e6));
-    const takerAmountBN = priceMicro > 0n ? makerAmountBN * 1000000n / priceMicro : makerAmountBN;
-    const salt = randomSalt();
-    const verifyingContract = market.negRisk ? NEG_RISK_CTF_EXCHANGE : CTF_EXCHANGE;
-    const orderMessage = {
-      salt,
-      maker: wallet.address,
-      signer: wallet.address,
-      taker: "0x0000000000000000000000000000000000000000",
-      tokenId,
-      makerAmount: makerAmountBN.toString(),
-      takerAmount: takerAmountBN.toString(),
-      expiration: "0",
-      // 0 = GTC (good-till-cancelled)
-      nonce: "0",
-      feeRateBps: "0",
-      side: "0",
-      // 0 = BUY
-      signatureType: "0"
-      // 0 = EOA
-    };
-    const typedData = {
-      domain: {
-        name: "CTF Exchange",
-        version: "1",
-        chainId: POLYGON_CHAIN_ID_NUM,
-        verifyingContract
-      },
-      types: { Order: ORDER_TYPES.Order },
-      primaryType: "Order",
-      message: orderMessage
-    };
-    const signature = await eth.request({
-      method: "eth_signTypedData_v4",
-      params: [wallet.address, JSON.stringify(typedData)]
-    });
-    return {
-      ...orderMessage,
-      signature,
-      negRisk: market.negRisk
-    };
-  }
-  async function saveWalletState(wallet) {
-    return chrome.storage.local.set({ polymarket_wallet: wallet });
-  }
-  async function loadWalletState() {
-    const result = await chrome.storage.local.get("polymarket_wallet");
-    return result.polymarket_wallet ?? null;
-  }
-
   // src/content/index.ts
   var POLL_INTERVAL_MS = 8e3;
   var DEBOUNCE_MS = 1500;
-  var POLYGON_CHAIN_ID2 = "0x89";
   function getExtractor() {
     const host = window.location.hostname;
     if (host.includes("twitter.com") || host.includes("x.com")) return extractFromTwitter;
@@ -1135,59 +931,13 @@ var PolymarketRadar = (() => {
     if (prev.length !== next.length) return true;
     return prev.some((k, i) => k !== next[i]);
   }
-  async function ensurePolygon() {
-    const chainId = await getChainId();
-    if (chainId !== POLYGON_CHAIN_ID2) {
-      await switchToPolygon();
-    }
-  }
-  async function connectAndAuth() {
-    const address = await connectWallet();
-    await ensurePolygon();
-    const wallet = await authenticateWallet(address);
-    await saveWalletState(wallet);
-    return wallet;
-  }
   async function init() {
     const extractor = getExtractor();
     if (!extractor) return;
     const overlay = new PolymarketOverlay();
     overlay.mount();
-    let wallet = await loadWalletState();
-    overlay.setWalletConnected(wallet?.connected ?? false);
-    overlay.onConnect = async () => {
-      try {
-        wallet = await connectAndAuth();
-        overlay.setWalletConnected(true);
-      } catch (err) {
-        console.error("[PolymarketRadar] Wallet connect failed:", err);
-        throw err;
-      }
-    };
-    overlay.onBet = async (market, outcome, usdcAmount) => {
-      if (!wallet?.connected) {
-        wallet = await connectAndAuth();
-        overlay.setWalletConnected(true);
-      }
-      await ensurePolygon();
-      const signedOrder = await buildAndSignOrder(wallet, market, outcome, usdcAmount);
-      const response = await new Promise(
-        (resolve, reject) => {
-          chrome.runtime.sendMessage(
-            { type: "PLACE_ORDER", wallet, order: signedOrder },
-            (res) => {
-              if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-              } else {
-                resolve(res);
-              }
-            }
-          );
-        }
-      );
-      if (response.type === "ORDER_ERROR") {
-        throw new Error(response.error ?? "Order failed");
-      }
+    overlay.onBet = async (market, _outcome) => {
+      window.open(market.url, "_blank");
     };
     let lastKeywords = [];
     let debounceTimer = null;
@@ -1216,7 +966,7 @@ var PolymarketRadar = (() => {
         }
       } catch (err) {
         console.error("[PolymarketRadar] Search error:", err);
-        overlay.setError("Failed to load markets. Please try again.");
+        overlay.setError("Failed to load markets.");
       } finally {
         isFetching = false;
       }
@@ -1231,29 +981,20 @@ var PolymarketRadar = (() => {
     }
     const initialKws = extractor();
     if (initialKws.length > 0) onKeywordsUpdated(initialKws);
-    setInterval(() => {
-      const kws = extractor();
-      onKeywordsUpdated(kws);
-    }, POLL_INTERVAL_MS);
+    setInterval(() => onKeywordsUpdated(extractor()), POLL_INTERVAL_MS);
     if (window.location.hostname.includes("youtube.com")) {
       let lastUrl = window.location.href;
       new MutationObserver(() => {
         if (window.location.href !== lastUrl) {
           lastUrl = window.location.href;
-          setTimeout(() => {
-            const kws = extractor();
-            if (kws.length > 0) onKeywordsUpdated(kws);
-          }, 2e3);
+          setTimeout(() => onKeywordsUpdated(extractor()), 2e3);
         }
       }).observe(document.body, { childList: true, subtree: true });
     }
     if (window.location.hostname.includes("twitter.com") || window.location.hostname.includes("x.com")) {
       const main = document.querySelector("main");
       if (main) {
-        new MutationObserver(() => {
-          const kws = extractor();
-          onKeywordsUpdated(kws);
-        }).observe(main, { childList: true, subtree: false });
+        new MutationObserver(() => onKeywordsUpdated(extractor())).observe(main, { childList: true, subtree: false });
       }
     }
   }

@@ -176,13 +176,12 @@ var PolymarketBg = (() => {
       POLY_PASSPHRASE: wallet.passphrase
     };
   }
-  async function submitOrder(wallet, order) {
+  async function submitOrder(wallet, order, orderType = "GTC") {
     const { negRisk, ...orderFields } = order;
     const body = JSON.stringify({
       order: orderFields,
       owner: wallet.address,
-      orderType: "GTC"
-      // Good-Till-Cancelled
+      orderType
     });
     const headers = await buildL2Headers(wallet, "POST", "/order", body);
     const res = await fetch(`${CLOB_BASE}/order`, {
@@ -205,55 +204,106 @@ var PolymarketBg = (() => {
   }
 
   // src/background/service-worker.ts
-  var CACHE_TTL_MS = 6e4;
+  var CTF_EXCHANGE = "0x4bFb41d5B3570DeFd03C39a9A4D8dE6Bd8B8982e";
+  var NEG_RISK_CTF_EX = "0xC5d563A36AE78145C45a50134d48A1a293c969E1";
+  var POLYGON_CHAIN_ID = 137;
+  var CACHE_TTL = 6e4;
   var cache = /* @__PURE__ */ new Map();
+  async function findPolymarketTab() {
+    const tabs = await chrome.tabs.query({ url: "https://polymarket.com/*" });
+    return tabs[0] ?? null;
+  }
+  function randomSalt() {
+    return String(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
+  }
+  function buildUnsignedOrder(session, market, params) {
+    const idx = params.outcome === "Yes" ? 0 : 1;
+    const rawPrice = market.outcomePrices[idx] ?? 0.5;
+    const tokenId = market.clobTokenIds[idx] ?? "";
+    const effectivePrice = params.orderType === "FOK" ? Math.min(rawPrice * 1.05, 0.99) : rawPrice;
+    const makerAmountBN = BigInt(Math.round(params.usdcAmount * 1e6));
+    const priceMicro = BigInt(Math.round(effectivePrice * 1e6));
+    const takerAmountBN = priceMicro > 0n ? makerAmountBN * 1000000n / priceMicro : makerAmountBN;
+    const order = {
+      salt: randomSalt(),
+      maker: session.address,
+      signer: session.address,
+      taker: "0x0000000000000000000000000000000000000000",
+      tokenId,
+      makerAmount: makerAmountBN.toString(),
+      takerAmount: takerAmountBN.toString(),
+      expiration: "0",
+      nonce: "0",
+      feeRateBps: "0",
+      side: "0",
+      signatureType: "0"
+    };
+    const domain = {
+      name: "CTF Exchange",
+      version: "1",
+      chainId: POLYGON_CHAIN_ID,
+      verifyingContract: market.negRisk ? NEG_RISK_CTF_EX : CTF_EXCHANGE
+    };
+    return { order, domain };
+  }
   chrome.runtime.onMessage.addListener(
     (message, _sender, sendResponse) => {
       switch (message.type) {
-        // ── Market search (with 60s cache) ──────────────────────────────
+        // ── Market search ─────────────────────────────────────────────────
         case "SEARCH_MARKETS": {
-          const { keywords } = message;
-          const key = keywords.join(",");
-          const cached = cache.get(key);
-          if (cached && cached.expiresAt > Date.now()) {
-            sendResponse({ type: "SEARCH_RESULT", result: cached.result });
+          const key = message.keywords.join(",");
+          const hit = cache.get(key);
+          if (hit && hit.expiresAt > Date.now()) {
+            sendResponse({ type: "SEARCH_RESULT", result: hit.result });
             return true;
           }
-          searchMarkets(keywords).then((markets) => {
-            const result = { markets, keywords, timestamp: Date.now() };
-            cache.set(key, { result, expiresAt: Date.now() + CACHE_TTL_MS });
+          searchMarkets(message.keywords).then((markets) => {
+            const result = { markets, keywords: message.keywords, timestamp: Date.now() };
+            cache.set(key, { result, expiresAt: Date.now() + CACHE_TTL });
             sendResponse({ type: "SEARCH_RESULT", result });
-          }).catch((err) => {
-            sendResponse({ type: "SEARCH_ERROR", error: String(err?.message ?? err) });
-          });
+          }).catch(
+            (err) => sendResponse({ type: "SEARCH_ERROR", error: String(err?.message ?? err) })
+          );
           return true;
         }
-        // ── Wallet state (read from chrome.storage) ─────────────────────
-        case "GET_WALLET": {
-          chrome.storage.local.get("polymarket_wallet").then((result) => {
-            sendResponse({
-              type: "WALLET_STATE",
-              wallet: result.polymarket_wallet ?? null
+        // ── Get session from polymarket.com tab ───────────────────────────
+        case "GET_SESSION": {
+          findPolymarketTab().then((tab) => {
+            if (!tab?.id) {
+              sendResponse({ type: "SESSION_RESULT", session: null, noTab: true });
+              return;
+            }
+            chrome.tabs.sendMessage(tab.id, { type: "PM_GET_SESSION" }).then((res) => {
+              sendResponse({ type: "SESSION_RESULT", session: res?.session ?? null, noTab: false });
+            }).catch(() => {
+              sendResponse({ type: "SESSION_RESULT", session: null, noTab: false });
             });
           });
           return true;
         }
-        case "SAVE_WALLET": {
-          chrome.storage.local.set({ polymarket_wallet: message.wallet }).then(() => sendResponse({ type: "WALLET_STATE", wallet: message.wallet }));
-          return true;
-        }
-        case "CLEAR_WALLET": {
-          chrome.storage.local.remove("polymarket_wallet").then(() => sendResponse({ type: "WALLET_STATE", wallet: null }));
-          return true;
-        }
-        // ── Place CLOB order (background makes the authenticated HTTPS request)
+        // ── Place order via polymarket.com page session ───────────────────
         case "PLACE_ORDER": {
-          const { wallet, order } = message;
-          submitOrder(wallet, order).then((result) => {
-            sendResponse({ type: "ORDER_SUCCESS", result });
-          }).catch((err) => {
-            sendResponse({ type: "ORDER_ERROR", error: String(err?.message ?? err) });
-          });
+          const { session, params, market } = message;
+          const { order, domain } = buildUnsignedOrder(session, market, params);
+          findPolymarketTab().then((tab) => {
+            if (!tab?.id) {
+              throw new Error("No polymarket.com tab open. Please open Polymarket first.");
+            }
+            if (!session.hasEthProvider) {
+              throw new Error("NO_ETH_PROVIDER");
+            }
+            return chrome.tabs.sendMessage(tab.id, {
+              type: "PM_SIGN_ORDER",
+              address: session.address,
+              order,
+              domain
+            });
+          }).then((res) => {
+            if (!res) throw new Error("No response from Polymarket tab");
+            if (res.error) throw new Error(res.error);
+            const signed = { ...order, signature: res.signature, negRisk: market.negRisk };
+            return submitOrder(session, signed, params.orderType);
+          }).then((result) => sendResponse({ type: "ORDER_SUCCESS", result })).catch((err) => sendResponse({ type: "ORDER_ERROR", error: err.message ?? String(err) }));
           return true;
         }
         default:

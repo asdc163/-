@@ -39,6 +39,22 @@ await esbuild.build({
 });
 console.log('✓ content.js');
 
+console.log('🔨 Building polymarket-bridge content script (IIFE)...');
+await esbuild.build({
+  entryPoints: [resolve(__dirname, 'src/content/polymarket-bridge.ts')],
+  bundle: true,
+  outfile: resolve(dist, 'polymarket-bridge.js'),
+  format: 'iife',
+  globalName: 'PolymarketBridge',
+  platform: 'browser',
+  target: 'chrome120',
+  sourcemap: false,
+  minify: false,
+  tsconfig: resolve(__dirname, 'tsconfig.json'),
+  define: { 'process.env.NODE_ENV': '"production"' },
+});
+console.log('✓ polymarket-bridge.js');
+
 console.log('🔨 Building background service worker (IIFE)...');
 await esbuild.build({
   entryPoints: [resolve(__dirname, 'src/background/service-worker.ts')],

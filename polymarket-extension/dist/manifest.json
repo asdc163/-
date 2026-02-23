@@ -1,13 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Polymarket Radar",
-  "version": "1.0.0",
-  "description": "Instantly discover relevant Polymarket prediction markets while browsing Twitter/X and YouTube.",
+  "version": "1.1.0",
+  "description": "Quick-order any Polymarket market from your browser, using your existing Polymarket login.",
   "permissions": [
     "storage",
-    "activeTab"
+    "activeTab",
+    "tabs"
   ],
   "host_permissions": [
+    "https://polymarket.com/*",
     "https://gamma-api.polymarket.com/*",
     "https://clob.polymarket.com/*",
     "https://data-api.polymarket.com/*",
@@ -25,9 +27,12 @@
         "https://x.com/*",
         "https://www.youtube.com/*"
       ],
-      "js": [
-        "content.js"
-      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://polymarket.com/*"],
+      "js": ["polymarket-bridge.js"],
       "run_at": "document_idle"
     }
   ],

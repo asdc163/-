@@ -8,7 +8,10 @@
  *   - Balance fetch: GET /positions (Data API)
  */
 
-import type { WalletState, ClobOrderPayload, PlacedOrder } from './types';
+import type { PolySession, ClobOrderPayload, PlacedOrder } from './types';
+
+// Minimal auth interface — both PolySession and legacy WalletState satisfy this
+type ClobAuth = Pick<PolySession, 'address' | 'apiKey' | 'secret' | 'passphrase'>;
 
 const CLOB_BASE = 'https://clob.polymarket.com';
 
@@ -32,7 +35,7 @@ async function hmacSha256Hex(message: string, secret: string): Promise<string> {
 // ─── L2 request headers ───────────────────────────────────────────────────
 
 async function buildL2Headers(
-  wallet: WalletState,
+  wallet: ClobAuth,
   method: string,
   path: string,
   body?: string
@@ -85,15 +88,16 @@ export async function deriveApiKey(
 // ─── Place order ──────────────────────────────────────────────────────────
 
 export async function submitOrder(
-  wallet: WalletState,
-  order: ClobOrderPayload
+  wallet: ClobAuth,
+  order: ClobOrderPayload,
+  orderType: 'GTC' | 'FOK' = 'GTC'
 ): Promise<PlacedOrder> {
   const { negRisk, ...orderFields } = order;
 
   const body = JSON.stringify({
     order: orderFields,
     owner: wallet.address,
-    orderType: 'GTC',         // Good-Till-Cancelled
+    orderType,
   });
 
   const headers = await buildL2Headers(wallet, 'POST', '/order', body);
@@ -122,7 +126,7 @@ export async function submitOrder(
 
 // ─── Get open orders ─────────────────────────────────────────────────────
 
-export async function getOpenOrders(wallet: WalletState) {
+export async function getOpenOrders(wallet: ClobAuth) {
   const headers = await buildL2Headers(wallet, 'GET', '/orders', '');
   const res = await fetch(`${CLOB_BASE}/orders`, { headers });
   if (!res.ok) throw new Error(`Failed to fetch orders (${res.status})`);
