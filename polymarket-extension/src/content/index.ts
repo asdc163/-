@@ -21,6 +21,7 @@ import { extractFromTwitter } from './extractors/twitter';
 import { extractFromYouTube } from './extractors/youtube';
 import { PolymarketOverlay } from './overlay';
 import type { PolymarketMarket } from '../shared/types';
+import { detectLang, LangCode } from '../shared/i18n';
 
 const POLL_INTERVAL_MS = 15_000; // Poll every 15s while visible
 const DEBOUNCE_MS      =  2_000; // Wait 2s after keyword change
@@ -47,7 +48,11 @@ async function init() {
   if (!extractorOrNull) return;
   const extractor: Extractor = extractorOrNull;
 
-  const overlay = new PolymarketOverlay();
+  // Read stored language preference; fall back to browser locale
+  const storedData = await chrome.storage.local.get('pm_lang');
+  const lang: LangCode = (storedData.pm_lang as LangCode) ?? detectLang(navigator.language);
+
+  const overlay = new PolymarketOverlay(lang);
   overlay.mount();
 
   // ── YES/NO bet handler ───────────────────────────────────────────────────

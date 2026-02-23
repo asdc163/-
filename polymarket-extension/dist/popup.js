@@ -597,13 +597,13 @@ var PolymarketPopup = (() => {
         for (a = 0; a < b.length; a++) da.add(b[a]);
       }
       var ia = !("undefined" === typeof window || "undefined" === typeof window.document || "undefined" === typeof window.document.createElement);
-      var ja = Object.prototype.hasOwnProperty;
+      var ja2 = Object.prototype.hasOwnProperty;
       var ka = /^[:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD][:A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD\-.0-9\u00B7\u0300-\u036F\u203F-\u2040]*$/;
       var la = {};
       var ma = {};
       function oa(a) {
-        if (ja.call(ma, a)) return true;
-        if (ja.call(la, a)) return false;
+        if (ja2.call(ma, a)) return true;
+        if (ja2.call(la, a)) return false;
         if (ka.test(a)) return ma[a] = true;
         la[a] = true;
         return false;
@@ -2179,7 +2179,7 @@ var PolymarketPopup = (() => {
         if (c.length !== d.length) return false;
         for (d = 0; d < c.length; d++) {
           var e = c[d];
-          if (!ja.call(b, e) || !He(a[e], b[e])) return false;
+          if (!ja2.call(b, e) || !He(a[e], b[e])) return false;
         }
         return true;
       }
@@ -7341,8 +7341,632 @@ var PolymarketPopup = (() => {
     }
   }
 
+  // src/shared/i18n.ts
+  var SUPPORTED_LANGS = [
+    { code: "en", label: "EN" },
+    { code: "zh-TW", label: "\u7E41\u4E2D" },
+    { code: "zh-CN", label: "\u7B80\u4E2D" },
+    { code: "ja", label: "\u65E5\u672C\u8A9E" },
+    { code: "ko", label: "\uD55C\uAD6D\uC5B4" },
+    { code: "es", label: "ES" },
+    { code: "pt", label: "PT" }
+  ];
+  var en = {
+    appName: "Polymarket Radar",
+    appSubtitle: "Trade smarter, faster",
+    checkingSession: "Checking session\u2026",
+    notConnected: "Not connected to Polymarket",
+    loginHintNoTab: "Open polymarket.com in any tab and log in.",
+    loginHintHasTab: "Log in at polymarket.com \u2014 MetaMask, Coinbase, WalletConnect, Google, email all work.",
+    openPolymarket: "Open Polymarket \u2197",
+    retry: "Retry",
+    socialLogin: "Social login",
+    vpnTitle: "Restricted region? You may need a VPN first.",
+    vpnFree: "Free options: ProtonVPN \xB7 Windscribe (10 GB/mo)",
+    tabSearch: "Search",
+    tabPortfolio: "Portfolio",
+    searchPlaceholder: "Search any topic\u2026",
+    searchBtn: "Search Markets",
+    searching: "Searching\u2026",
+    recent: "Recent",
+    noMarketsFound: "No active markets found",
+    tryDifferentKw: "Try different keywords",
+    searchPromptTitle: "Search any topic",
+    searchPromptLoggedIn: "Find a market, click YES% or NO% to order directly from here",
+    searchPromptLoggedOut: "Log in at polymarket.com first, then search to place orders",
+    buyTitle: (o, p) => `Buy ${o} \xB7 ${p}%`,
+    amountLabel: "Amount (USDC)",
+    orderTypeLabel: "Order type",
+    orderMarket: "\u26A1 Market",
+    orderLimit: (p) => `\u{1F4CC} Limit ${p}%`,
+    orderMarketHint: "Fills immediately \xB7 up to 5% slippage",
+    orderLimitHint: (p) => `Resting limit @ ${p}% \xB7 fills when matched`,
+    pay: "Pay",
+    getApprox: "Get \u2248",
+    shares: "shares",
+    lowBal: (b) => `\u26A0 Balance $${b} may be insufficient`,
+    cancel: "Cancel",
+    awaitingWallet: "\u23F3 Awaiting wallet\u2026",
+    confirmBuy: (o) => `Confirm Buy ${o}`,
+    sellTitle: (o, p) => `Sell ${o} \xB7 ${p}%`,
+    sharesLabel: (s) => `Shares to sell (you hold ${s})`,
+    allShares: (s) => `All (${s})`,
+    halfShares: (s) => `Half (${s})`,
+    customPlaceholder: "Custom",
+    sellMarketHint: "Fills immediately \xB7 accepts up to 3% less USDC",
+    socialSellWarning: "Social login detected \u2014 will open Polymarket to complete sell",
+    confirmSell: (o) => `Confirm Sell ${o}`,
+    sellBtn: "Sell",
+    sellingBtn: "Selling\u2026",
+    connectFirst: "Connect to Polymarket first",
+    connectFirstSub: "Log in at polymarket.com to see your positions",
+    posLabel: "Positions",
+    valueLabel: "Value",
+    pnlLabel: "P&L",
+    noPositions: "No open positions",
+    noPositionsSub: "You don't hold any shares yet. Search for a market and place your first trade!",
+    resolved: (n) => `Resolved (${n})`,
+    refreshBtn: "\u21BB Refresh positions",
+    resolvedBadge: "Resolved",
+    viewLink: "View \u2197",
+    sharesCol: "Shares",
+    priceCol: "Price",
+    pnlCol: "P&L",
+    avgPct: (p) => `avg ${p}%`,
+    costLabel: "cost",
+    overlayPendingTitle: "Trade staged from page overlay",
+    marketCount: (n) => `${n} market${n !== 1 ? "s" : ""}`,
+    detectingTopics: "Detecting topics\u2026",
+    searchingKw: (k) => `Searching: ${k}`,
+    topicsKw: (k) => `Topics: ${k}`,
+    noTopics: "No topics detected",
+    scanningMarkets: "Scanning markets\u2026",
+    searchingMarkets: "Searching markets\u2026",
+    noMarketsOverlay: "No active markets for current content",
+    readyToTrade: "\u26A1 Ready to trade!",
+    pendingSubDefault: "Click the \u{1F3AF} toolbar icon to confirm your trade in the popup.",
+    pendingSubDetail: (o, p) => `${o} @ ${p}% staged \u2014 click \u{1F3AF} in toolbar to confirm.`,
+    openPopupBtn: "\u{1F3AF} Open Popup to Trade",
+    dismissBtn: "dismiss",
+    closeHint: "Close (won't reopen for this topic)",
+    footerHint: "Click YES/NO to stage a trade \xB7 confirm via the \u{1F3AF} popup",
+    yesTradeBtn: (p) => `YES ${p}% \u2014 Trade \u26A1`,
+    noTradeBtn: (p) => `NO ${p}% \u2014 Trade \u26A1`,
+    tradeOnPoly: "Trade on Polymarket \u2197",
+    viewLink2: "View \u2197"
+  };
+  var zhTW = {
+    appName: "Polymarket \u96F7\u9054",
+    appSubtitle: "\u66F4\u8070\u660E\u3001\u66F4\u5FEB\u901F\u5730\u4EA4\u6613",
+    checkingSession: "\u6B63\u5728\u6AA2\u67E5\u767B\u5165\u72C0\u614B\u2026",
+    notConnected: "\u5C1A\u672A\u9023\u63A5\u5230 Polymarket",
+    loginHintNoTab: "\u8ACB\u5728\u4EFB\u610F\u5206\u9801\u958B\u555F polymarket.com \u4E26\u767B\u5165\u3002",
+    loginHintHasTab: "\u8ACB\u5728 polymarket.com \u767B\u5165 \u2014 MetaMask\u3001Coinbase\u3001Google\u3001Email \u7B49\u5747\u53EF\u4F7F\u7528\u3002",
+    openPolymarket: "\u958B\u555F Polymarket \u2197",
+    retry: "\u91CD\u8A66",
+    socialLogin: "\u793E\u4EA4\u767B\u5165",
+    vpnTitle: "\u5728\u53D7\u9650\u5730\u5340\uFF1F\u8ACB\u5148\u958B\u555F VPN\u3002",
+    vpnFree: "\u514D\u8CBB\u9078\u9805\uFF1AProtonVPN \xB7 Windscribe\uFF08\u6BCF\u6708 10GB\uFF09",
+    tabSearch: "\u641C\u5C0B",
+    tabPortfolio: "\u6295\u8CC7\u7D44\u5408",
+    searchPlaceholder: "\u641C\u5C0B\u4EFB\u4F55\u8A71\u984C\u2026",
+    searchBtn: "\u641C\u5C0B\u5E02\u5834",
+    searching: "\u641C\u5C0B\u4E2D\u2026",
+    recent: "\u6700\u8FD1\u641C\u5C0B",
+    noMarketsFound: "\u627E\u4E0D\u5230\u76F8\u95DC\u6D3B\u8E8D\u5E02\u5834",
+    tryDifferentKw: "\u8ACB\u5617\u8A66\u5176\u4ED6\u95DC\u9375\u5B57",
+    searchPromptTitle: "\u641C\u5C0B\u4EFB\u4F55\u8A71\u984C",
+    searchPromptLoggedIn: "\u627E\u5230\u5E02\u5834\u5F8C\uFF0C\u9EDE\u64CA YES% \u6216 NO% \u5373\u53EF\u76F4\u63A5\u4E0B\u55AE",
+    searchPromptLoggedOut: "\u8ACB\u5148\u5728 polymarket.com \u767B\u5165\uFF0C\u518D\u641C\u5C0B\u4E0B\u55AE",
+    buyTitle: (o, p) => `\u8CB7\u5165 ${o} \xB7 ${p}%`,
+    amountLabel: "\u91D1\u984D\uFF08USDC\uFF09",
+    orderTypeLabel: "\u8A02\u55AE\u985E\u578B",
+    orderMarket: "\u26A1 \u5E02\u50F9\u55AE",
+    orderLimit: (p) => `\u{1F4CC} \u9650\u50F9 ${p}%`,
+    orderMarketHint: "\u7ACB\u5373\u6210\u4EA4\u30FB\u5141\u8A31\u6700\u591A 5% \u6ED1\u9EDE",
+    orderLimitHint: (p) => `\u9650\u50F9\u639B\u55AE @ ${p}%\u30FB\u64AE\u5408\u6642\u6210\u4EA4`,
+    pay: "\u652F\u4ED8",
+    getApprox: "\u7372\u5F97\u7D04",
+    shares: "\u80A1\u4EFD",
+    lowBal: (b) => `\u26A0 \u9918\u984D $${b} \u53EF\u80FD\u4E0D\u8DB3`,
+    cancel: "\u53D6\u6D88",
+    awaitingWallet: "\u23F3 \u7B49\u5F85\u9322\u5305\u78BA\u8A8D\u2026",
+    confirmBuy: (o) => `\u78BA\u8A8D\u8CB7\u5165 ${o}`,
+    sellTitle: (o, p) => `\u8CE3\u51FA ${o} \xB7 ${p}%`,
+    sharesLabel: (s) => `\u8CE3\u51FA\u80A1\u4EFD\uFF08\u4F60\u6301\u6709 ${s}\uFF09`,
+    allShares: (s) => `\u5168\u90E8\uFF08${s}\uFF09`,
+    halfShares: (s) => `\u4E00\u534A\uFF08${s}\uFF09`,
+    customPlaceholder: "\u81EA\u8A02",
+    sellMarketHint: "\u7ACB\u5373\u6210\u4EA4\u30FB\u63A5\u53D7\u6700\u591A\u5C11 3% \u7684 USDC",
+    socialSellWarning: "\u5075\u6E2C\u5230\u793E\u4EA4\u767B\u5165 \u2014 \u5C07\u958B\u555F Polymarket \u5B8C\u6210\u8CE3\u51FA",
+    confirmSell: (o) => `\u78BA\u8A8D\u8CE3\u51FA ${o}`,
+    sellBtn: "\u8CE3\u51FA",
+    sellingBtn: "\u8CE3\u51FA\u4E2D\u2026",
+    connectFirst: "\u8ACB\u5148\u9023\u63A5 Polymarket",
+    connectFirstSub: "\u5728 polymarket.com \u767B\u5165\u4EE5\u67E5\u770B\u60A8\u7684\u6301\u5009",
+    posLabel: "\u6301\u5009\u6578",
+    valueLabel: "\u50F9\u503C",
+    pnlLabel: "\u640D\u76CA",
+    noPositions: "\u76EE\u524D\u6C92\u6709\u6301\u5009",
+    noPositionsSub: "\u60A8\u76EE\u524D\u5C1A\u672A\u6301\u6709\u4EFB\u4F55\u80A1\u4EFD\u3002\u641C\u5C0B\u5E02\u5834\u4E26\u9032\u884C\u60A8\u7684\u7B2C\u4E00\u7B46\u4EA4\u6613\uFF01",
+    resolved: (n) => `\u5DF2\u7D50\u7B97\uFF08${n}\uFF09`,
+    refreshBtn: "\u21BB \u5237\u65B0\u6301\u5009",
+    resolvedBadge: "\u5DF2\u7D50\u7B97",
+    viewLink: "\u67E5\u770B \u2197",
+    sharesCol: "\u80A1\u4EFD",
+    priceCol: "\u50F9\u683C",
+    pnlCol: "\u640D\u76CA",
+    avgPct: (p) => `\u5747 ${p}%`,
+    costLabel: "\u6210\u672C",
+    overlayPendingTitle: "\u5DF2\u5F9E\u9801\u9762\u6D6E\u52D5\u8996\u7A97\u66AB\u5B58\u4EA4\u6613",
+    marketCount: (n) => `${n} \u500B\u5E02\u5834`,
+    detectingTopics: "\u6B63\u5728\u5075\u6E2C\u8A71\u984C\u2026",
+    searchingKw: (k) => `\u641C\u5C0B\u4E2D\uFF1A${k}`,
+    topicsKw: (k) => `\u8A71\u984C\uFF1A${k}`,
+    noTopics: "\u672A\u5075\u6E2C\u5230\u8A71\u984C",
+    scanningMarkets: "\u6B63\u5728\u6383\u63CF\u5E02\u5834\u2026",
+    searchingMarkets: "\u641C\u5C0B\u5E02\u5834\u4E2D\u2026",
+    noMarketsOverlay: "\u76EE\u524D\u5167\u5BB9\u7121\u76F8\u95DC\u6D3B\u8E8D\u5E02\u5834",
+    readyToTrade: "\u26A1 \u6E96\u5099\u597D\u4EA4\u6613\u4E86\uFF01",
+    pendingSubDefault: "\u9EDE\u64CA\u5DE5\u5177\u5217\u7684 \u{1F3AF} \u5716\u793A\uFF0C\u5728\u5F48\u51FA\u8996\u7A97\u4E2D\u78BA\u8A8D\u60A8\u7684\u4EA4\u6613\u3002",
+    pendingSubDetail: (o, p) => `${o} @ ${p}% \u5DF2\u66AB\u5B58 \u2014 \u9EDE\u64CA\u5DE5\u5177\u5217 \u{1F3AF} \u78BA\u8A8D\u3002`,
+    openPopupBtn: "\u{1F3AF} \u958B\u555F\u5F48\u51FA\u8996\u7A97\u4EA4\u6613",
+    dismissBtn: "\u95DC\u9589",
+    closeHint: "\u95DC\u9589\uFF08\u6B64\u8A71\u984C 3 \u5206\u9418\u5167\u4E0D\u518D\u5F48\u51FA\uFF09",
+    footerHint: "\u9EDE\u64CA YES/NO \u66AB\u5B58\u4EA4\u6613 \xB7 \u900F\u904E \u{1F3AF} \u5F48\u51FA\u8996\u7A97\u78BA\u8A8D",
+    yesTradeBtn: (p) => `YES ${p}% \u2014 \u4EA4\u6613 \u26A1`,
+    noTradeBtn: (p) => `NO ${p}% \u2014 \u4EA4\u6613 \u26A1`,
+    tradeOnPoly: "\u5728 Polymarket \u4EA4\u6613 \u2197",
+    viewLink2: "\u67E5\u770B \u2197"
+  };
+  var zhCN = {
+    appName: "Polymarket \u96F7\u8FBE",
+    appSubtitle: "\u66F4\u806A\u660E\u3001\u66F4\u5FEB\u901F\u5730\u4EA4\u6613",
+    checkingSession: "\u6B63\u5728\u68C0\u67E5\u767B\u5F55\u72B6\u6001\u2026",
+    notConnected: "\u672A\u8FDE\u63A5\u5230 Polymarket",
+    loginHintNoTab: "\u8BF7\u5728\u4EFB\u610F\u6807\u7B7E\u9875\u6253\u5F00 polymarket.com \u5E76\u767B\u5F55\u3002",
+    loginHintHasTab: "\u8BF7\u5728 polymarket.com \u767B\u5F55 \u2014 MetaMask\u3001Coinbase\u3001Google\u3001Email \u7B49\u5747\u53EF\u4F7F\u7528\u3002",
+    openPolymarket: "\u6253\u5F00 Polymarket \u2197",
+    retry: "\u91CD\u8BD5",
+    socialLogin: "\u793E\u4EA4\u767B\u5F55",
+    vpnTitle: "\u5728\u53D7\u9650\u533A\u57DF\uFF1F\u8BF7\u5148\u5F00\u542F VPN\u3002",
+    vpnFree: "\u514D\u8D39\u9009\u9879\uFF1AProtonVPN \xB7 Windscribe\uFF08\u6BCF\u6708 10GB\uFF09",
+    tabSearch: "\u641C\u7D22",
+    tabPortfolio: "\u6295\u8D44\u7EC4\u5408",
+    searchPlaceholder: "\u641C\u7D22\u4EFB\u4F55\u8BDD\u9898\u2026",
+    searchBtn: "\u641C\u7D22\u5E02\u573A",
+    searching: "\u641C\u7D22\u4E2D\u2026",
+    recent: "\u6700\u8FD1\u641C\u7D22",
+    noMarketsFound: "\u672A\u627E\u5230\u76F8\u5173\u6D3B\u8DC3\u5E02\u573A",
+    tryDifferentKw: "\u8BF7\u5C1D\u8BD5\u5176\u4ED6\u5173\u952E\u8BCD",
+    searchPromptTitle: "\u641C\u7D22\u4EFB\u4F55\u8BDD\u9898",
+    searchPromptLoggedIn: "\u627E\u5230\u5E02\u573A\u540E\uFF0C\u70B9\u51FB YES% \u6216 NO% \u5373\u53EF\u76F4\u63A5\u4E0B\u5355",
+    searchPromptLoggedOut: "\u8BF7\u5148\u5728 polymarket.com \u767B\u5F55\uFF0C\u518D\u641C\u7D22\u4E0B\u5355",
+    buyTitle: (o, p) => `\u4E70\u5165 ${o} \xB7 ${p}%`,
+    amountLabel: "\u91D1\u989D\uFF08USDC\uFF09",
+    orderTypeLabel: "\u8BA2\u5355\u7C7B\u578B",
+    orderMarket: "\u26A1 \u5E02\u4EF7\u5355",
+    orderLimit: (p) => `\u{1F4CC} \u9650\u4EF7 ${p}%`,
+    orderMarketHint: "\u7ACB\u5373\u6210\u4EA4\u30FB\u5141\u8BB8\u6700\u591A 5% \u6ED1\u70B9",
+    orderLimitHint: (p) => `\u9650\u4EF7\u6302\u5355 @ ${p}%\u30FB\u64AE\u5408\u65F6\u6210\u4EA4`,
+    pay: "\u652F\u4ED8",
+    getApprox: "\u83B7\u5F97\u7EA6",
+    shares: "\u80A1\u4EFD",
+    lowBal: (b) => `\u26A0 \u4F59\u989D $${b} \u53EF\u80FD\u4E0D\u8DB3`,
+    cancel: "\u53D6\u6D88",
+    awaitingWallet: "\u23F3 \u7B49\u5F85\u94B1\u5305\u786E\u8BA4\u2026",
+    confirmBuy: (o) => `\u786E\u8BA4\u4E70\u5165 ${o}`,
+    sellTitle: (o, p) => `\u5356\u51FA ${o} \xB7 ${p}%`,
+    sharesLabel: (s) => `\u5356\u51FA\u80A1\u4EFD\uFF08\u4F60\u6301\u6709 ${s}\uFF09`,
+    allShares: (s) => `\u5168\u90E8\uFF08${s}\uFF09`,
+    halfShares: (s) => `\u4E00\u534A\uFF08${s}\uFF09`,
+    customPlaceholder: "\u81EA\u5B9A\u4E49",
+    sellMarketHint: "\u7ACB\u5373\u6210\u4EA4\u30FB\u63A5\u53D7\u6700\u591A\u5C11 3% \u7684 USDC",
+    socialSellWarning: "\u68C0\u6D4B\u5230\u793E\u4EA4\u767B\u5F55 \u2014 \u5C06\u6253\u5F00 Polymarket \u5B8C\u6210\u5356\u51FA",
+    confirmSell: (o) => `\u786E\u8BA4\u5356\u51FA ${o}`,
+    sellBtn: "\u5356\u51FA",
+    sellingBtn: "\u5356\u51FA\u4E2D\u2026",
+    connectFirst: "\u8BF7\u5148\u8FDE\u63A5 Polymarket",
+    connectFirstSub: "\u5728 polymarket.com \u767B\u5F55\u4EE5\u67E5\u770B\u60A8\u7684\u6301\u4ED3",
+    posLabel: "\u6301\u4ED3\u6570",
+    valueLabel: "\u4EF7\u503C",
+    pnlLabel: "\u635F\u76CA",
+    noPositions: "\u76EE\u524D\u6CA1\u6709\u6301\u4ED3",
+    noPositionsSub: "\u60A8\u76EE\u524D\u5C1A\u672A\u6301\u6709\u4EFB\u4F55\u80A1\u4EFD\u3002\u641C\u7D22\u5E02\u573A\u5E76\u8FDB\u884C\u60A8\u7684\u7B2C\u4E00\u7B14\u4EA4\u6613\uFF01",
+    resolved: (n) => `\u5DF2\u7ED3\u7B97\uFF08${n}\uFF09`,
+    refreshBtn: "\u21BB \u5237\u65B0\u6301\u4ED3",
+    resolvedBadge: "\u5DF2\u7ED3\u7B97",
+    viewLink: "\u67E5\u770B \u2197",
+    sharesCol: "\u80A1\u4EFD",
+    priceCol: "\u4EF7\u683C",
+    pnlCol: "\u635F\u76CA",
+    avgPct: (p) => `\u5747 ${p}%`,
+    costLabel: "\u6210\u672C",
+    overlayPendingTitle: "\u5DF2\u4ECE\u9875\u9762\u6D6E\u5C42\u6682\u5B58\u4EA4\u6613",
+    marketCount: (n) => `${n} \u4E2A\u5E02\u573A`,
+    detectingTopics: "\u6B63\u5728\u68C0\u6D4B\u8BDD\u9898\u2026",
+    searchingKw: (k) => `\u641C\u7D22\u4E2D\uFF1A${k}`,
+    topicsKw: (k) => `\u8BDD\u9898\uFF1A${k}`,
+    noTopics: "\u672A\u68C0\u6D4B\u5230\u8BDD\u9898",
+    scanningMarkets: "\u6B63\u5728\u626B\u63CF\u5E02\u573A\u2026",
+    searchingMarkets: "\u641C\u7D22\u5E02\u573A\u4E2D\u2026",
+    noMarketsOverlay: "\u5F53\u524D\u5185\u5BB9\u65E0\u76F8\u5173\u6D3B\u8DC3\u5E02\u573A",
+    readyToTrade: "\u26A1 \u51C6\u5907\u597D\u4EA4\u6613\u4E86\uFF01",
+    pendingSubDefault: "\u70B9\u51FB\u5DE5\u5177\u680F\u7684 \u{1F3AF} \u56FE\u6807\uFF0C\u5728\u5F39\u51FA\u7A97\u53E3\u4E2D\u786E\u8BA4\u60A8\u7684\u4EA4\u6613\u3002",
+    pendingSubDetail: (o, p) => `${o} @ ${p}% \u5DF2\u6682\u5B58 \u2014 \u70B9\u51FB\u5DE5\u5177\u680F \u{1F3AF} \u786E\u8BA4\u3002`,
+    openPopupBtn: "\u{1F3AF} \u6253\u5F00\u5F39\u51FA\u7A97\u53E3\u4EA4\u6613",
+    dismissBtn: "\u5173\u95ED",
+    closeHint: "\u5173\u95ED\uFF08\u6B64\u8BDD\u9898 3 \u5206\u949F\u5185\u4E0D\u518D\u5F39\u51FA\uFF09",
+    footerHint: "\u70B9\u51FB YES/NO \u6682\u5B58\u4EA4\u6613 \xB7 \u901A\u8FC7 \u{1F3AF} \u5F39\u51FA\u7A97\u53E3\u786E\u8BA4",
+    yesTradeBtn: (p) => `YES ${p}% \u2014 \u4EA4\u6613 \u26A1`,
+    noTradeBtn: (p) => `NO ${p}% \u2014 \u4EA4\u6613 \u26A1`,
+    tradeOnPoly: "\u5728 Polymarket \u4EA4\u6613 \u2197",
+    viewLink2: "\u67E5\u770B \u2197"
+  };
+  var ja = {
+    appName: "Polymarket \u30EC\u30FC\u30C0\u30FC",
+    appSubtitle: "\u3088\u308A\u30B9\u30DE\u30FC\u30C8\u306B\u3001\u3088\u308A\u901F\u304F\u53D6\u5F15",
+    checkingSession: "\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u78BA\u8A8D\u4E2D\u2026",
+    notConnected: "Polymarket \u306B\u63A5\u7D9A\u3055\u308C\u3066\u3044\u307E\u305B\u3093",
+    loginHintNoTab: "\u4EFB\u610F\u306E\u30BF\u30D6\u3067 polymarket.com \u3092\u958B\u3044\u3066\u30ED\u30B0\u30A4\u30F3\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+    loginHintHasTab: "polymarket.com \u3067\u30ED\u30B0\u30A4\u30F3\u3057\u3066\u304F\u3060\u3055\u3044 \u2014 MetaMask\u3001Coinbase\u3001Google\u3001\u30E1\u30FC\u30EB\u5BFE\u5FDC\u3002",
+    openPolymarket: "Polymarket \u3092\u958B\u304F \u2197",
+    retry: "\u518D\u8A66\u884C",
+    socialLogin: "\u30BD\u30FC\u30B7\u30E3\u30EB\u30ED\u30B0\u30A4\u30F3",
+    vpnTitle: "\u30A2\u30AF\u30BB\u30B9\u5236\u9650\u5730\u57DF\u3067\u3059\u304B\uFF1FVPN \u304C\u5FC5\u8981\u306A\u5834\u5408\u304C\u3042\u308A\u307E\u3059\u3002",
+    vpnFree: "\u7121\u6599\u30AA\u30D7\u30B7\u30E7\u30F3\uFF1AProtonVPN\u30FBWindscribe\uFF08\u670810GB\uFF09",
+    tabSearch: "\u691C\u7D22",
+    tabPortfolio: "\u30DD\u30FC\u30C8\u30D5\u30A9\u30EA\u30AA",
+    searchPlaceholder: "\u4EFB\u610F\u306E\u30C8\u30D4\u30C3\u30AF\u3092\u691C\u7D22\u2026",
+    searchBtn: "\u30DE\u30FC\u30B1\u30C3\u30C8\u3092\u691C\u7D22",
+    searching: "\u691C\u7D22\u4E2D\u2026",
+    recent: "\u6700\u8FD1\u306E\u691C\u7D22",
+    noMarketsFound: "\u30A2\u30AF\u30C6\u30A3\u30D6\u306A\u30DE\u30FC\u30B1\u30C3\u30C8\u304C\u898B\u3064\u304B\u308A\u307E\u305B\u3093",
+    tryDifferentKw: "\u5225\u306E\u30AD\u30FC\u30EF\u30FC\u30C9\u3092\u304A\u8A66\u3057\u304F\u3060\u3055\u3044",
+    searchPromptTitle: "\u30C8\u30D4\u30C3\u30AF\u3092\u691C\u7D22",
+    searchPromptLoggedIn: "\u30DE\u30FC\u30B1\u30C3\u30C8\u3092\u898B\u3064\u3051\u3066 YES% \u307E\u305F\u306F NO% \u3092\u30AF\u30EA\u30C3\u30AF\u3059\u308B\u3068\u76F4\u63A5\u6CE8\u6587\u3067\u304D\u307E\u3059",
+    searchPromptLoggedOut: "\u307E\u305A polymarket.com \u3067\u30ED\u30B0\u30A4\u30F3\u3057\u3066\u304B\u3089\u6CE8\u6587\u3057\u3066\u304F\u3060\u3055\u3044",
+    buyTitle: (o, p) => `${o} \u3092\u8CB7\u3046 \xB7 ${p}%`,
+    amountLabel: "\u91D1\u984D (USDC)",
+    orderTypeLabel: "\u6CE8\u6587\u30BF\u30A4\u30D7",
+    orderMarket: "\u26A1 \u6210\u884C\u6CE8\u6587",
+    orderLimit: (p) => `\u{1F4CC} \u6307\u5024 ${p}%`,
+    orderMarketHint: "\u5373\u6642\u7D04\u5B9A\u30FB\u6700\u59275%\u30B9\u30EA\u30C3\u30DA\u30FC\u30B8\u8A31\u5BB9",
+    orderLimitHint: (p) => `\u6307\u5024 @ ${p}% \u3067\u5F85\u6A5F\u30FB\u30DE\u30C3\u30C1\u30F3\u30B0\u6642\u306B\u7D04\u5B9A`,
+    pay: "\u652F\u6255\u3046",
+    getApprox: "\u53D7\u53D6 \u2248",
+    shares: "\u30B7\u30A7\u30A2",
+    lowBal: (b) => `\u26A0 \u6B8B\u9AD8 $${b} \u304C\u4E0D\u8DB3\u3057\u3066\u3044\u308B\u53EF\u80FD\u6027\u304C\u3042\u308A\u307E\u3059`,
+    cancel: "\u30AD\u30E3\u30F3\u30BB\u30EB",
+    awaitingWallet: "\u23F3 \u30A6\u30A9\u30EC\u30C3\u30C8\u3092\u5F85\u6A5F\u4E2D\u2026",
+    confirmBuy: (o) => `${o} \u306E\u8CFC\u5165\u3092\u78BA\u8A8D`,
+    sellTitle: (o, p) => `${o} \u3092\u58F2\u308B \xB7 ${p}%`,
+    sharesLabel: (s) => `\u58F2\u5374\u3059\u308B\u30B7\u30A7\u30A2\uFF08\u4FDD\u6709\u6570: ${s}\uFF09`,
+    allShares: (s) => `\u5168\u90E8 (${s})`,
+    halfShares: (s) => `\u534A\u5206 (${s})`,
+    customPlaceholder: "\u30AB\u30B9\u30BF\u30E0",
+    sellMarketHint: "\u5373\u6642\u7D04\u5B9A\u30FB\u6700\u59273%\u5C11\u306A\u3044USDC\u3092\u8A31\u5BB9",
+    socialSellWarning: "\u30BD\u30FC\u30B7\u30E3\u30EB\u30ED\u30B0\u30A4\u30F3\u3092\u691C\u51FA \u2014 Polymarket \u3067\u58F2\u5374\u3092\u5B8C\u4E86\u3057\u307E\u3059",
+    confirmSell: (o) => `${o} \u306E\u58F2\u5374\u3092\u78BA\u8A8D`,
+    sellBtn: "\u58F2\u5374",
+    sellingBtn: "\u58F2\u5374\u4E2D\u2026",
+    connectFirst: "\u307E\u305A Polymarket \u306B\u63A5\u7D9A\u3057\u3066\u304F\u3060\u3055\u3044",
+    connectFirstSub: "polymarket.com \u306B\u30ED\u30B0\u30A4\u30F3\u3057\u3066\u30DD\u30B8\u30B7\u30E7\u30F3\u3092\u78BA\u8A8D",
+    posLabel: "\u30DD\u30B8\u30B7\u30E7\u30F3",
+    valueLabel: "\u8A55\u4FA1\u984D",
+    pnlLabel: "\u640D\u76CA",
+    noPositions: "\u30AA\u30FC\u30D7\u30F3\u30DD\u30B8\u30B7\u30E7\u30F3\u306A\u3057",
+    noPositionsSub: "\u307E\u3060\u30B7\u30A7\u30A2\u3092\u4FDD\u6709\u3057\u3066\u3044\u307E\u305B\u3093\u3002\u30DE\u30FC\u30B1\u30C3\u30C8\u3092\u691C\u7D22\u3057\u3066\u6700\u521D\u306E\u30C8\u30EC\u30FC\u30C9\u3092\u59CB\u3081\u307E\u3057\u3087\u3046\uFF01",
+    resolved: (n) => `\u89E3\u6C7A\u6E08\u307F (${n})`,
+    refreshBtn: "\u21BB \u30DD\u30B8\u30B7\u30E7\u30F3\u3092\u66F4\u65B0",
+    resolvedBadge: "\u89E3\u6C7A\u6E08",
+    viewLink: "\u8868\u793A \u2197",
+    sharesCol: "\u30B7\u30A7\u30A2",
+    priceCol: "\u4FA1\u683C",
+    pnlCol: "\u640D\u76CA",
+    avgPct: (p) => `\u5E73\u5747 ${p}%`,
+    costLabel: "\u539F\u4FA1",
+    overlayPendingTitle: "\u30DA\u30FC\u30B8\u30AA\u30FC\u30D0\u30FC\u30EC\u30A4\u304B\u3089\u30C8\u30EC\u30FC\u30C9\u3092\u4FDD\u5B58\u3057\u307E\u3057\u305F",
+    marketCount: (n) => `${n} \u30DE\u30FC\u30B1\u30C3\u30C8`,
+    detectingTopics: "\u30C8\u30D4\u30C3\u30AF\u3092\u691C\u51FA\u4E2D\u2026",
+    searchingKw: (k) => `\u691C\u7D22\u4E2D\uFF1A${k}`,
+    topicsKw: (k) => `\u30C8\u30D4\u30C3\u30AF\uFF1A${k}`,
+    noTopics: "\u30C8\u30D4\u30C3\u30AF\u304C\u898B\u3064\u304B\u308A\u307E\u305B\u3093",
+    scanningMarkets: "\u30DE\u30FC\u30B1\u30C3\u30C8\u3092\u30B9\u30AD\u30E3\u30F3\u4E2D\u2026",
+    searchingMarkets: "\u30DE\u30FC\u30B1\u30C3\u30C8\u3092\u691C\u7D22\u4E2D\u2026",
+    noMarketsOverlay: "\u73FE\u5728\u306E\u30B3\u30F3\u30C6\u30F3\u30C4\u306B\u95A2\u9023\u3059\u308B\u30DE\u30FC\u30B1\u30C3\u30C8\u306F\u3042\u308A\u307E\u305B\u3093",
+    readyToTrade: "\u26A1 \u30C8\u30EC\u30FC\u30C9\u6E96\u5099\u5B8C\u4E86\uFF01",
+    pendingSubDefault: "\u30C4\u30FC\u30EB\u30D0\u30FC\u306E \u{1F3AF} \u30A2\u30A4\u30B3\u30F3\u3092\u30AF\u30EA\u30C3\u30AF\u3057\u3066\u30DD\u30C3\u30D7\u30A2\u30C3\u30D7\u3067\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+    pendingSubDetail: (o, p) => `${o} @ ${p}% \u3092\u4FDD\u5B58\u3057\u307E\u3057\u305F \u2014 \u30C4\u30FC\u30EB\u30D0\u30FC \u{1F3AF} \u3092\u30AF\u30EA\u30C3\u30AF\u3057\u3066\u78BA\u8A8D\u3002`,
+    openPopupBtn: "\u{1F3AF} \u30DD\u30C3\u30D7\u30A2\u30C3\u30D7\u3092\u958B\u3044\u3066\u30C8\u30EC\u30FC\u30C9",
+    dismissBtn: "\u9589\u3058\u308B",
+    closeHint: "\u9589\u3058\u308B\uFF08\u3053\u306E\u30C8\u30D4\u30C3\u30AF\u3067\u306F\u518D\u8868\u793A\u3057\u307E\u305B\u3093\uFF09",
+    footerHint: "YES/NO \u30AF\u30EA\u30C3\u30AF\u3067\u30C8\u30EC\u30FC\u30C9\u4FDD\u5B58 \xB7 \u{1F3AF} \u30DD\u30C3\u30D7\u30A2\u30C3\u30D7\u3067\u78BA\u8A8D",
+    yesTradeBtn: (p) => `YES ${p}% \u2014 \u53D6\u5F15 \u26A1`,
+    noTradeBtn: (p) => `NO ${p}% \u2014 \u53D6\u5F15 \u26A1`,
+    tradeOnPoly: "Polymarket \u3067\u53D6\u5F15 \u2197",
+    viewLink2: "\u8868\u793A \u2197"
+  };
+  var ko = {
+    appName: "Polymarket \uB808\uC774\uB354",
+    appSubtitle: "\uB354 \uC2A4\uB9C8\uD2B8\uD558\uAC8C, \uB354 \uBE60\uB974\uAC8C \uAC70\uB798",
+    checkingSession: "\uC138\uC158 \uD655\uC778 \uC911\u2026",
+    notConnected: "Polymarket\uC5D0 \uC5F0\uACB0\uB418\uC9C0 \uC54A\uC74C",
+    loginHintNoTab: "\uC544\uBB34 \uD0ED\uC5D0\uC11C polymarket.com\uC744 \uC5F4\uACE0 \uB85C\uADF8\uC778\uD558\uC138\uC694.",
+    loginHintHasTab: "polymarket.com\uC5D0 \uB85C\uADF8\uC778\uD558\uC138\uC694 \u2014 MetaMask, Coinbase, Google, \uC774\uBA54\uC77C \uBAA8\uB450 \uC9C0\uC6D0\uD569\uB2C8\uB2E4.",
+    openPolymarket: "Polymarket \uC5F4\uAE30 \u2197",
+    retry: "\uB2E4\uC2DC \uC2DC\uB3C4",
+    socialLogin: "\uC18C\uC15C \uB85C\uADF8\uC778",
+    vpnTitle: "\uC81C\uD55C \uC9C0\uC5ED\uC778\uAC00\uC694? VPN\uC774 \uD544\uC694\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
+    vpnFree: "\uBB34\uB8CC \uC635\uC158: ProtonVPN \xB7 Windscribe (\uC6D4 10GB)",
+    tabSearch: "\uAC80\uC0C9",
+    tabPortfolio: "\uD3EC\uD2B8\uD3F4\uB9AC\uC624",
+    searchPlaceholder: "\uC544\uBB34 \uC8FC\uC81C\uB098 \uAC80\uC0C9\u2026",
+    searchBtn: "\uB9C8\uCF13 \uAC80\uC0C9",
+    searching: "\uAC80\uC0C9 \uC911\u2026",
+    recent: "\uCD5C\uADFC \uAC80\uC0C9",
+    noMarketsFound: "\uD65C\uC131 \uB9C8\uCF13\uC744 \uCC3E\uC744 \uC218 \uC5C6\uC74C",
+    tryDifferentKw: "\uB2E4\uB978 \uD0A4\uC6CC\uB4DC\uB97C \uC2DC\uB3C4\uD574\uBCF4\uC138\uC694",
+    searchPromptTitle: "\uC8FC\uC81C \uAC80\uC0C9",
+    searchPromptLoggedIn: "\uB9C8\uCF13\uC744 \uCC3E\uACE0 YES% \uB610\uB294 NO%\uB97C \uD074\uB9AD\uD558\uBA74 \uBC14\uB85C \uC8FC\uBB38\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4",
+    searchPromptLoggedOut: "\uBA3C\uC800 polymarket.com\uC5D0\uC11C \uB85C\uADF8\uC778\uD55C \uD6C4 \uAC80\uC0C9\uD558\uC5EC \uC8FC\uBB38\uD558\uC138\uC694",
+    buyTitle: (o, p) => `${o} \uB9E4\uC218 \xB7 ${p}%`,
+    amountLabel: "\uAE08\uC561 (USDC)",
+    orderTypeLabel: "\uC8FC\uBB38 \uC720\uD615",
+    orderMarket: "\u26A1 \uC2DC\uC7A5\uAC00",
+    orderLimit: (p) => `\u{1F4CC} \uC9C0\uC815\uAC00 ${p}%`,
+    orderMarketHint: "\uC989\uC2DC \uCCB4\uACB0 \xB7 \uCD5C\uB300 5% \uC2AC\uB9AC\uD53C\uC9C0",
+    orderLimitHint: (p) => `\uC9C0\uC815\uAC00 @ ${p}% \uB300\uAE30 \xB7 \uB9E4\uCE6D \uC2DC \uCCB4\uACB0`,
+    pay: "\uC9C0\uBD88",
+    getApprox: "\uBC1B\uC744 \u2248",
+    shares: "\uC8FC\uC2DD",
+    lowBal: (b) => `\u26A0 \uC794\uC561 $${b}\uC774 \uBD80\uC871\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4`,
+    cancel: "\uCDE8\uC18C",
+    awaitingWallet: "\u23F3 \uC9C0\uAC11 \uD655\uC778 \uB300\uAE30 \uC911\u2026",
+    confirmBuy: (o) => `${o} \uB9E4\uC218 \uD655\uC778`,
+    sellTitle: (o, p) => `${o} \uB9E4\uB3C4 \xB7 ${p}%`,
+    sharesLabel: (s) => `\uB9E4\uB3C4\uD560 \uC8FC\uC2DD (\uBCF4\uC720: ${s})`,
+    allShares: (s) => `\uC804\uBD80 (${s})`,
+    halfShares: (s) => `\uC808\uBC18 (${s})`,
+    customPlaceholder: "\uC9C1\uC811 \uC785\uB825",
+    sellMarketHint: "\uC989\uC2DC \uCCB4\uACB0 \xB7 \uCD5C\uB300 3% \uC801\uC740 USDC \uD5C8\uC6A9",
+    socialSellWarning: "\uC18C\uC15C \uB85C\uADF8\uC778 \uAC10\uC9C0 \u2014 Polymarket\uC5D0\uC11C \uB9E4\uB3C4\uB97C \uC644\uB8CC\uD569\uB2C8\uB2E4",
+    confirmSell: (o) => `${o} \uB9E4\uB3C4 \uD655\uC778`,
+    sellBtn: "\uB9E4\uB3C4",
+    sellingBtn: "\uB9E4\uB3C4 \uC911\u2026",
+    connectFirst: "\uBA3C\uC800 Polymarket\uC5D0 \uC5F0\uACB0\uD558\uC138\uC694",
+    connectFirstSub: "polymarket.com\uC5D0 \uB85C\uADF8\uC778\uD558\uC5EC \uD3EC\uC9C0\uC158\uC744 \uD655\uC778\uD558\uC138\uC694",
+    posLabel: "\uD3EC\uC9C0\uC158",
+    valueLabel: "\uAC00\uCE58",
+    pnlLabel: "\uC190\uC775",
+    noPositions: "\uC5F4\uB9B0 \uD3EC\uC9C0\uC158 \uC5C6\uC74C",
+    noPositionsSub: "\uC544\uC9C1 \uC8FC\uC2DD\uC744 \uBCF4\uC720\uD558\uACE0 \uC788\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4. \uB9C8\uCF13\uC744 \uAC80\uC0C9\uD558\uACE0 \uCCAB \uAC70\uB798\uB97C \uC2DC\uC791\uD558\uC138\uC694!",
+    resolved: (n) => `\uD574\uACB0\uB428 (${n})`,
+    refreshBtn: "\u21BB \uD3EC\uC9C0\uC158 \uC0C8\uB85C\uACE0\uCE68",
+    resolvedBadge: "\uD574\uACB0\uB428",
+    viewLink: "\uBCF4\uAE30 \u2197",
+    sharesCol: "\uC8FC\uC2DD",
+    priceCol: "\uAC00\uACA9",
+    pnlCol: "\uC190\uC775",
+    avgPct: (p) => `\uD3C9\uADE0 ${p}%`,
+    costLabel: "\uBE44\uC6A9",
+    overlayPendingTitle: "\uD398\uC774\uC9C0 \uC624\uBC84\uB808\uC774\uC5D0\uC11C \uAC70\uB798\uAC00 \uC900\uBE44\uB418\uC5C8\uC2B5\uB2C8\uB2E4",
+    marketCount: (n) => `${n}\uAC1C \uB9C8\uCF13`,
+    detectingTopics: "\uC8FC\uC81C \uAC10\uC9C0 \uC911\u2026",
+    searchingKw: (k) => `\uAC80\uC0C9 \uC911: ${k}`,
+    topicsKw: (k) => `\uC8FC\uC81C: ${k}`,
+    noTopics: "\uAC10\uC9C0\uB41C \uC8FC\uC81C \uC5C6\uC74C",
+    scanningMarkets: "\uB9C8\uCF13 \uC2A4\uCE94 \uC911\u2026",
+    searchingMarkets: "\uB9C8\uCF13 \uAC80\uC0C9 \uC911\u2026",
+    noMarketsOverlay: "\uD604\uC7AC \uCF58\uD150\uCE20\uC5D0 \uAD00\uB828\uB41C \uD65C\uC131 \uB9C8\uCF13 \uC5C6\uC74C",
+    readyToTrade: "\u26A1 \uAC70\uB798 \uC900\uBE44 \uC644\uB8CC!",
+    pendingSubDefault: "\uD234\uBC14\uC758 \u{1F3AF} \uC544\uC774\uCF58\uC744 \uD074\uB9AD\uD558\uC5EC \uD31D\uC5C5\uC5D0\uC11C \uAC70\uB798\uB97C \uD655\uC778\uD558\uC138\uC694.",
+    pendingSubDetail: (o, p) => `${o} @ ${p}% \uC900\uBE44\uB428 \u2014 \uD234\uBC14 \u{1F3AF} \uD074\uB9AD\uD558\uC5EC \uD655\uC778.`,
+    openPopupBtn: "\u{1F3AF} \uD31D\uC5C5 \uC5F4\uC5B4\uC11C \uAC70\uB798",
+    dismissBtn: "\uB2EB\uAE30",
+    closeHint: "\uB2EB\uAE30 (\uC774 \uC8FC\uC81C\uB85C \uB2E4\uC2DC \uC5F4\uB9AC\uC9C0 \uC54A\uC74C)",
+    footerHint: "YES/NO \uD074\uB9AD\uC73C\uB85C \uAC70\uB798 \uC900\uBE44 \xB7 \u{1F3AF} \uD31D\uC5C5\uC73C\uB85C \uD655\uC778",
+    yesTradeBtn: (p) => `YES ${p}% \u2014 \uAC70\uB798 \u26A1`,
+    noTradeBtn: (p) => `NO ${p}% \u2014 \uAC70\uB798 \u26A1`,
+    tradeOnPoly: "Polymarket\uC5D0\uC11C \uAC70\uB798 \u2197",
+    viewLink2: "\uBCF4\uAE30 \u2197"
+  };
+  var es = {
+    appName: "Polymarket Radar",
+    appSubtitle: "Opera m\xE1s r\xE1pido e inteligente",
+    checkingSession: "Verificando sesi\xF3n\u2026",
+    notConnected: "No conectado a Polymarket",
+    loginHintNoTab: "Abre polymarket.com en cualquier pesta\xF1a e inicia sesi\xF3n.",
+    loginHintHasTab: "Inicia sesi\xF3n en polymarket.com \u2014 MetaMask, Coinbase, Google, email son compatibles.",
+    openPolymarket: "Abrir Polymarket \u2197",
+    retry: "Reintentar",
+    socialLogin: "Login social",
+    vpnTitle: "\xBFRegi\xF3n restringida? Es posible que necesites una VPN.",
+    vpnFree: "Opciones gratis: ProtonVPN \xB7 Windscribe (10 GB/mes)",
+    tabSearch: "Buscar",
+    tabPortfolio: "Portafolio",
+    searchPlaceholder: "Busca cualquier tema\u2026",
+    searchBtn: "Buscar Mercados",
+    searching: "Buscando\u2026",
+    recent: "Reciente",
+    noMarketsFound: "No se encontraron mercados activos",
+    tryDifferentKw: "Prueba otras palabras clave",
+    searchPromptTitle: "Busca cualquier tema",
+    searchPromptLoggedIn: "Encuentra un mercado y haz clic en YES% o NO% para ordenar directamente",
+    searchPromptLoggedOut: "Inicia sesi\xF3n en polymarket.com primero y luego busca para ordenar",
+    buyTitle: (o, p) => `Comprar ${o} \xB7 ${p}%`,
+    amountLabel: "Cantidad (USDC)",
+    orderTypeLabel: "Tipo de orden",
+    orderMarket: "\u26A1 Mercado",
+    orderLimit: (p) => `\u{1F4CC} L\xEDmite ${p}%`,
+    orderMarketHint: "Se ejecuta inmediatamente \xB7 hasta 5% de deslizamiento",
+    orderLimitHint: (p) => `Orden l\xEDmite @ ${p}% \xB7 se ejecuta al cruzar`,
+    pay: "Pagar",
+    getApprox: "Recibir \u2248",
+    shares: "acciones",
+    lowBal: (b) => `\u26A0 Saldo $${b} puede ser insuficiente`,
+    cancel: "Cancelar",
+    awaitingWallet: "\u23F3 Esperando billetera\u2026",
+    confirmBuy: (o) => `Confirmar Compra ${o}`,
+    sellTitle: (o, p) => `Vender ${o} \xB7 ${p}%`,
+    sharesLabel: (s) => `Acciones a vender (tienes ${s})`,
+    allShares: (s) => `Todo (${s})`,
+    halfShares: (s) => `Mitad (${s})`,
+    customPlaceholder: "Personalizar",
+    sellMarketHint: "Se ejecuta inmediatamente \xB7 acepta hasta 3% menos USDC",
+    socialSellWarning: "Login social detectado \u2014 se abrir\xE1 Polymarket para completar la venta",
+    confirmSell: (o) => `Confirmar Venta ${o}`,
+    sellBtn: "Vender",
+    sellingBtn: "Vendiendo\u2026",
+    connectFirst: "Con\xE9ctate a Polymarket primero",
+    connectFirstSub: "Inicia sesi\xF3n en polymarket.com para ver tus posiciones",
+    posLabel: "Posiciones",
+    valueLabel: "Valor",
+    pnlLabel: "G/P",
+    noPositions: "Sin posiciones abiertas",
+    noPositionsSub: "A\xFAn no tienes acciones. \xA1Busca un mercado y realiza tu primera operaci\xF3n!",
+    resolved: (n) => `Resuelto (${n})`,
+    refreshBtn: "\u21BB Actualizar posiciones",
+    resolvedBadge: "Resuelto",
+    viewLink: "Ver \u2197",
+    sharesCol: "Acciones",
+    priceCol: "Precio",
+    pnlCol: "G/P",
+    avgPct: (p) => `prom ${p}%`,
+    costLabel: "costo",
+    overlayPendingTitle: "Operaci\xF3n preparada desde el panel",
+    marketCount: (n) => `${n} mercado${n !== 1 ? "s" : ""}`,
+    detectingTopics: "Detectando temas\u2026",
+    searchingKw: (k) => `Buscando: ${k}`,
+    topicsKw: (k) => `Temas: ${k}`,
+    noTopics: "No se detectaron temas",
+    scanningMarkets: "Escaneando mercados\u2026",
+    searchingMarkets: "Buscando mercados\u2026",
+    noMarketsOverlay: "No hay mercados activos para el contenido actual",
+    readyToTrade: "\u26A1 \xA1Listo para operar!",
+    pendingSubDefault: "Haz clic en el icono \u{1F3AF} de la barra para confirmar en el popup.",
+    pendingSubDetail: (o, p) => `${o} @ ${p}% preparado \u2014 clic en \u{1F3AF} para confirmar.`,
+    openPopupBtn: "\u{1F3AF} Abrir Popup para Operar",
+    dismissBtn: "cerrar",
+    closeHint: "Cerrar (no se reabrir\xE1 para este tema)",
+    footerHint: "Clic en YES/NO para preparar \xB7 confirma en el popup \u{1F3AF}",
+    yesTradeBtn: (p) => `YES ${p}% \u2014 Operar \u26A1`,
+    noTradeBtn: (p) => `NO ${p}% \u2014 Operar \u26A1`,
+    tradeOnPoly: "Operar en Polymarket \u2197",
+    viewLink2: "Ver \u2197"
+  };
+  var pt = {
+    appName: "Polymarket Radar",
+    appSubtitle: "Negocie de forma mais r\xE1pida e inteligente",
+    checkingSession: "Verificando sess\xE3o\u2026",
+    notConnected: "N\xE3o conectado ao Polymarket",
+    loginHintNoTab: "Abra polymarket.com em qualquer aba e fa\xE7a login.",
+    loginHintHasTab: "Fa\xE7a login em polymarket.com \u2014 MetaMask, Coinbase, Google, email s\xE3o suportados.",
+    openPolymarket: "Abrir Polymarket \u2197",
+    retry: "Tentar novamente",
+    socialLogin: "Login social",
+    vpnTitle: "Regi\xE3o restrita? Voc\xEA pode precisar de uma VPN.",
+    vpnFree: "Op\xE7\xF5es gratuitas: ProtonVPN \xB7 Windscribe (10 GB/m\xEAs)",
+    tabSearch: "Buscar",
+    tabPortfolio: "Portf\xF3lio",
+    searchPlaceholder: "Pesquise qualquer tema\u2026",
+    searchBtn: "Pesquisar Mercados",
+    searching: "Pesquisando\u2026",
+    recent: "Recente",
+    noMarketsFound: "Nenhum mercado ativo encontrado",
+    tryDifferentKw: "Tente palavras-chave diferentes",
+    searchPromptTitle: "Pesquise qualquer tema",
+    searchPromptLoggedIn: "Encontre um mercado e clique em YES% ou NO% para ordenar diretamente",
+    searchPromptLoggedOut: "Fa\xE7a login em polymarket.com primeiro, depois pesquise para fazer pedidos",
+    buyTitle: (o, p) => `Comprar ${o} \xB7 ${p}%`,
+    amountLabel: "Valor (USDC)",
+    orderTypeLabel: "Tipo de ordem",
+    orderMarket: "\u26A1 Mercado",
+    orderLimit: (p) => `\u{1F4CC} Limite ${p}%`,
+    orderMarketHint: "Executado imediatamente \xB7 at\xE9 5% de slippage",
+    orderLimitHint: (p) => `Ordem limite @ ${p}% \xB7 executada ao cruzar`,
+    pay: "Pagar",
+    getApprox: "Receber \u2248",
+    shares: "a\xE7\xF5es",
+    lowBal: (b) => `\u26A0 Saldo $${b} pode ser insuficiente`,
+    cancel: "Cancelar",
+    awaitingWallet: "\u23F3 Aguardando carteira\u2026",
+    confirmBuy: (o) => `Confirmar Compra ${o}`,
+    sellTitle: (o, p) => `Vender ${o} \xB7 ${p}%`,
+    sharesLabel: (s) => `A\xE7\xF5es a vender (voc\xEA tem ${s})`,
+    allShares: (s) => `Tudo (${s})`,
+    halfShares: (s) => `Metade (${s})`,
+    customPlaceholder: "Personalizar",
+    sellMarketHint: "Executado imediatamente \xB7 aceita at\xE9 3% menos USDC",
+    socialSellWarning: "Login social detectado \u2014 o Polymarket ser\xE1 aberto para concluir a venda",
+    confirmSell: (o) => `Confirmar Venda ${o}`,
+    sellBtn: "Vender",
+    sellingBtn: "Vendendo\u2026",
+    connectFirst: "Conecte-se ao Polymarket primeiro",
+    connectFirstSub: "Fa\xE7a login em polymarket.com para ver suas posi\xE7\xF5es",
+    posLabel: "Posi\xE7\xF5es",
+    valueLabel: "Valor",
+    pnlLabel: "L/P",
+    noPositions: "Sem posi\xE7\xF5es abertas",
+    noPositionsSub: "Voc\xEA ainda n\xE3o tem a\xE7\xF5es. Pesquise um mercado e fa\xE7a sua primeira negocia\xE7\xE3o!",
+    resolved: (n) => `Resolvido (${n})`,
+    refreshBtn: "\u21BB Atualizar posi\xE7\xF5es",
+    resolvedBadge: "Resolvido",
+    viewLink: "Ver \u2197",
+    sharesCol: "A\xE7\xF5es",
+    priceCol: "Pre\xE7o",
+    pnlCol: "L/P",
+    avgPct: (p) => `m\xE9d ${p}%`,
+    costLabel: "custo",
+    overlayPendingTitle: "Negocia\xE7\xE3o preparada pelo painel",
+    marketCount: (n) => `${n} mercado${n !== 1 ? "s" : ""}`,
+    detectingTopics: "Detectando t\xF3picos\u2026",
+    searchingKw: (k) => `Pesquisando: ${k}`,
+    topicsKw: (k) => `T\xF3picos: ${k}`,
+    noTopics: "Nenhum t\xF3pico detectado",
+    scanningMarkets: "Verificando mercados\u2026",
+    searchingMarkets: "Pesquisando mercados\u2026",
+    noMarketsOverlay: "Nenhum mercado ativo para o conte\xFAdo atual",
+    readyToTrade: "\u26A1 Pronto para negociar!",
+    pendingSubDefault: "Clique no \xEDcone \u{1F3AF} da barra de ferramentas para confirmar no popup.",
+    pendingSubDetail: (o, p) => `${o} @ ${p}% preparado \u2014 clique em \u{1F3AF} para confirmar.`,
+    openPopupBtn: "\u{1F3AF} Abrir Popup para Negociar",
+    dismissBtn: "fechar",
+    closeHint: "Fechar (n\xE3o reabrir\xE1 para este t\xF3pico)",
+    footerHint: "Clique em YES/NO para preparar \xB7 confirme no popup \u{1F3AF}",
+    yesTradeBtn: (p) => `YES ${p}% \u2014 Negociar \u26A1`,
+    noTradeBtn: (p) => `NO ${p}% \u2014 Negociar \u26A1`,
+    tradeOnPoly: "Negociar no Polymarket \u2197",
+    viewLink2: "Ver \u2197"
+  };
+  var ALL = {
+    "en": en,
+    "zh-TW": zhTW,
+    "zh-CN": zhCN,
+    "ja": ja,
+    "ko": ko,
+    "es": es,
+    "pt": pt
+  };
+  function getStrings(lang) {
+    return ALL[lang] ?? en;
+  }
+  function detectLang(locale) {
+    if (!locale) return "en";
+    const l = locale.toLowerCase();
+    if (l.startsWith("zh-tw") || l.startsWith("zh-hant")) return "zh-TW";
+    if (l.startsWith("zh")) return "zh-CN";
+    if (l.startsWith("ja")) return "ja";
+    if (l.startsWith("ko")) return "ko";
+    if (l.startsWith("es")) return "es";
+    if (l.startsWith("pt")) return "pt";
+    return "en";
+  }
+
   // src/popup/App.tsx
   var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
+  var LangCtx = (0, import_react.createContext)(getStrings("en"));
+  var useLang = () => (0, import_react.useContext)(LangCtx);
   var C = {
     bg: "#0C0F1A",
     panel: "#111520",
@@ -7383,6 +8007,10 @@ var PolymarketPopup = (() => {
   function shortAddr(a) {
     return `${a.slice(0, 6)}\u2026${a.slice(-4)}`;
   }
+  function fmtPnl(pnl, pct) {
+    const s = pnl >= 0 ? "+" : "";
+    return `${s}$${pnl.toFixed(2)} (${s}${pct.toFixed(1)}%)`;
+  }
   function keywordsFromTitle(title) {
     const STOP = /* @__PURE__ */ new Set([
       "the",
@@ -7407,10 +8035,6 @@ var PolymarketPopup = (() => {
       "top"
     ]);
     return title.replace(/[|–\-—]/g, " ").replace(/\(.*?\)/g, "").replace(/[^a-zA-Z0-9 ]/g, " ").toLowerCase().split(/\s+/).filter((w) => w.length > 3 && !STOP.has(w)).slice(0, 4).join(" ");
-  }
-  function fmtPnl(pnl, pct) {
-    const sign = pnl >= 0 ? "+" : "";
-    return `${sign}$${pnl.toFixed(2)} (${sign}${pct.toFixed(1)}%)`;
   }
   var chip = (active, color = C.brand) => ({
     padding: "5px 12px",
@@ -7438,8 +8062,7 @@ var PolymarketPopup = (() => {
   function OddsBar({ outcomes, prices }) {
     const binary = outcomes.length === 2 && outcomes[0]?.toLowerCase() === "yes";
     if (binary) {
-      const y = Math.round((prices[0] ?? 0.5) * 100);
-      const n = 100 - y;
+      const y = Math.round((prices[0] ?? 0.5) * 100), n = 100 - y;
       return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { marginBottom: 10 }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 5 }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 13, fontWeight: 800, color: C.yes }, children: [
@@ -7453,23 +8076,10 @@ var PolymarketPopup = (() => {
             "%"
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: 5, borderRadius: 4, background: C.noDim, overflow: "hidden" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
-          width: `${y}%`,
-          height: "100%",
-          background: C.yes,
-          borderRadius: 4,
-          transition: "width .4s ease"
-        } }) })
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: 5, borderRadius: 4, background: C.noDim, overflow: "hidden" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: `${y}%`, height: "100%", background: C.yes, borderRadius: 4, transition: "width .4s ease" } }) })
       ] });
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }, children: outcomes.slice(0, 4).map((o, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: {
-      fontSize: 11,
-      background: C.border,
-      borderRadius: 20,
-      padding: "3px 9px",
-      color: C.textMid,
-      fontWeight: 600
-    }, children: [
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }, children: outcomes.slice(0, 4).map((o, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 11, background: C.border, borderRadius: 20, padding: "3px 9px", color: C.textMid, fontWeight: 600 }, children: [
       o,
       prices[i] != null && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { color: C.yes, marginLeft: 4, fontWeight: 800 }, children: [
         Math.round(prices[i] * 100),
@@ -7479,6 +8089,7 @@ var PolymarketPopup = (() => {
   }
   var BUY_PRESETS = [5, 10, 25, 50];
   function OrderPanel({ market, outcome, session, balance, onCancel, onSuccess, onError }) {
+    const s = useLang();
     const [preset, setPreset] = (0, import_react.useState)(10);
     const [custom, setCustom] = (0, import_react.useState)("");
     const [useCustom, setUseCustom] = (0, import_react.useState)(false);
@@ -7493,11 +8104,11 @@ var PolymarketPopup = (() => {
     const accentD = outcome === "Yes" ? C.yesDim : C.noDim;
     const lowBal = balance !== null && amount > 0 && amount > balance;
     (0, import_react.useEffect)(() => {
-      const onKey = (e) => {
+      const h = (e) => {
         if (e.key === "Escape") onCancel();
       };
-      window.addEventListener("keydown", onKey);
-      return () => window.removeEventListener("keydown", onKey);
+      window.addEventListener("keydown", h);
+      return () => window.removeEventListener("keydown", h);
     }, [onCancel]);
     const submit = async () => {
       if (amount <= 0 || busy) return;
@@ -7506,7 +8117,7 @@ var PolymarketPopup = (() => {
         const params = { outcome, usdcAmount: amount, orderType };
         const res = await chrome.runtime.sendMessage({ type: "PLACE_ORDER", session, params, market });
         if (res.type === "ORDER_SUCCESS") {
-          onSuccess(`${orderType === "FOK" ? "Market" : "Limit"} order placed \u2713  ${outcome} \u2248${shares} shares @ $${amount}`);
+          onSuccess(`${orderType === "FOK" ? "Market" : "Limit"} order placed \u2713  ${outcome} \u2248${shares} ${s.shares} @ $${amount}`);
         } else if (res.error === "NO_ETH_PROVIDER") {
           chrome.tabs.create({ url: market.url });
           onSuccess("Opened on Polymarket (social login)");
@@ -7528,53 +8139,24 @@ var PolymarketPopup = (() => {
       animation: "slideDown .15s ease"
     }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 13, fontWeight: 800, color: accent }, children: [
-          "Buy ",
-          outcome,
-          " \xB7 ",
-          Math.round(price * 100),
-          "%"
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onCancel, style: {
-          background: "none",
-          border: "none",
-          color: C.muted,
-          cursor: "pointer",
-          fontSize: 16,
-          lineHeight: 1,
-          padding: "0 4px"
-        }, children: "\xD7" })
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 13, fontWeight: 800, color: accent }, children: s.buyTitle(outcome, Math.round(price * 100)) }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onCancel, style: { background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 16, padding: "0 4px" }, children: "\xD7" })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
-        fontSize: 11,
-        color: C.muted,
-        marginBottom: 6,
-        fontWeight: 600,
-        textTransform: "uppercase",
-        letterSpacing: ".06em"
-      }, children: "Amount (USDC)" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, color: C.muted, marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em" }, children: s.amountLabel }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }, children: [
-        BUY_PRESETS.map((a) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-          "button",
-          {
-            onClick: () => {
-              setPreset(a);
-              setUseCustom(false);
-            },
-            style: chip(!useCustom && preset === a, accent),
-            children: [
-              "$",
-              a
-            ]
-          },
+        BUY_PRESETS.map((a) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => {
+          setPreset(a);
+          setUseCustom(false);
+        }, style: chip(!useCustom && preset === a, accent), children: [
+          "$",
           a
-        )),
+        ] }, a)),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
           "input",
           {
             type: "number",
             min: "1",
-            placeholder: "Other",
+            placeholder: s.customPlaceholder,
             value: custom,
             onChange: (e) => {
               setCustom(e.target.value);
@@ -7595,24 +8177,9 @@ var PolymarketPopup = (() => {
           }
         )
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
-        fontSize: 11,
-        color: C.muted,
-        marginBottom: 6,
-        fontWeight: 600,
-        textTransform: "uppercase",
-        letterSpacing: ".06em"
-      }, children: "Order type" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 6, marginBottom: 12 }, children: ["FOK", "GTC"].map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "button",
-        {
-          onClick: () => setOrderType(t),
-          style: { ...chip(orderType === t, C.brand), borderRadius: 7, padding: "6px 14px" },
-          children: t === "FOK" ? "\u26A1 Market" : `\u{1F4CC} Limit ${Math.round(price * 100)}%`
-        },
-        t
-      )) }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, color: C.muted, marginBottom: 12, lineHeight: 1.5 }, children: orderType === "FOK" ? "Fills immediately \xB7 up to 5% slippage" : `Resting limit @ ${Math.round(price * 100)}% \xB7 fills when matched` }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, color: C.muted, marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em" }, children: s.orderTypeLabel }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 6, marginBottom: 12 }, children: ["FOK", "GTC"].map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setOrderType(t), style: { ...chip(orderType === t, C.brand), borderRadius: 7, padding: "6px 14px" }, children: t === "FOK" ? s.orderMarket : s.orderLimit(Math.round(price * 100)) }, t)) }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, color: C.muted, marginBottom: 12, lineHeight: 1.5 }, children: orderType === "FOK" ? s.orderMarketHint : s.orderLimitHint(Math.round(price * 100)) }),
       amount > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
         background: C.card,
         border: `1px solid ${C.border}`,
@@ -7623,20 +8190,21 @@ var PolymarketPopup = (() => {
         justifyContent: "space-between",
         alignItems: "center"
       }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: C.textMid }, children: "Pay" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: C.textMid }, children: s.pay }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 13, fontWeight: 800, color: C.text }, children: [
           "$",
           amount,
           " USDC"
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: C.muted }, children: "\u2192" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: C.textMid }, children: "Get \u2248" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: C.textMid }, children: s.getApprox }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 13, fontWeight: 800, color: accent }, children: [
           shares,
-          " shares"
+          " ",
+          s.shares
         ] })
       ] }),
-      lowBal && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
+      lowBal && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
         fontSize: 11,
         color: C.amber,
         background: C.amberDim,
@@ -7644,11 +8212,7 @@ var PolymarketPopup = (() => {
         borderRadius: 6,
         padding: "6px 10px",
         marginBottom: 10
-      }, children: [
-        "\u26A0 Balance $",
-        balance.toFixed(2),
-        " may be insufficient"
-      ] }),
+      }, children: s.lowBal(balance.toFixed(2)) }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 8 }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onCancel, style: {
           flex: 1,
@@ -7660,7 +8224,7 @@ var PolymarketPopup = (() => {
           background: "transparent",
           color: C.textMid,
           cursor: "pointer"
-        }, children: "Cancel" }),
+        }, children: s.cancel }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
           "button",
           {
@@ -7678,13 +8242,14 @@ var PolymarketPopup = (() => {
               color: "#fff",
               opacity: busy ? 0.7 : 1
             },
-            children: busy ? "\u23F3 Awaiting wallet\u2026" : `Confirm Buy ${outcome}`
+            children: busy ? s.awaitingWallet : s.confirmBuy(outcome)
           }
         )
       ] })
     ] });
   }
   function SellPanel({ position, session, onCancel, onSuccess, onError }) {
+    const s = useLang();
     const [mode, setMode] = (0, import_react.useState)("all");
     const [custom, setCustom] = (0, import_react.useState)("");
     const [orderType, setOrderType] = (0, import_react.useState)("FOK");
@@ -7700,30 +8265,25 @@ var PolymarketPopup = (() => {
     const estUsdc = sharesToSell * position.currentPrice * slipFactor;
     const isValid = sharesToSell > 1e-3 && sharesToSell <= position.size;
     (0, import_react.useEffect)(() => {
-      const onKey = (e) => {
+      const h = (e) => {
         if (e.key === "Escape") onCancel();
       };
-      window.addEventListener("keydown", onKey);
-      return () => window.removeEventListener("keydown", onKey);
+      window.addEventListener("keydown", h);
+      return () => window.removeEventListener("keydown", h);
     }, [onCancel]);
     const submit = async () => {
       if (!isValid || busy) return;
       if (!session.hasEthProvider) {
-        const url = `https://polymarket.com/event/${position.slug}`;
-        chrome.tabs.create({ url });
+        chrome.tabs.create({ url: `https://polymarket.com/event/${position.slug}` });
         onSuccess("Opened on Polymarket (social login \u2014 sell there)");
         return;
       }
       setBusy(true);
       try {
         const sellParams = { position, sharesToSell, orderType };
-        const res = await chrome.runtime.sendMessage({
-          type: "SELL_POSITION",
-          session,
-          sellParams
-        });
+        const res = await chrome.runtime.sendMessage({ type: "SELL_POSITION", session, sellParams });
         if (res.type === "ORDER_SUCCESS") {
-          onSuccess(`Sold ${sharesToSell.toFixed(2)} shares @ ${pricePct}% \u2248 $${estUsdc.toFixed(2)} USDC \u2713`);
+          onSuccess(`Sold ${sharesToSell.toFixed(2)} ${s.shares} @ ${pricePct}% \u2248 $${estUsdc.toFixed(2)} USDC \u2713`);
         } else {
           onError(res.error ?? "Sell failed");
         }
@@ -7742,52 +8302,19 @@ var PolymarketPopup = (() => {
       animation: "slideDown .15s ease"
     }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 13, fontWeight: 800, color: C.no }, children: [
-          "Sell ",
-          position.outcome,
-          " \xB7 ",
-          pricePct,
-          "%"
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onCancel, style: {
-          background: "none",
-          border: "none",
-          color: C.muted,
-          cursor: "pointer",
-          fontSize: 16,
-          lineHeight: 1,
-          padding: "0 4px"
-        }, children: "\xD7" })
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 13, fontWeight: 800, color: C.no }, children: s.sellTitle(position.outcome, pricePct) }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onCancel, style: { background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 16, padding: "0 4px" }, children: "\xD7" })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
-        fontSize: 11,
-        color: C.muted,
-        marginBottom: 6,
-        fontWeight: 600,
-        textTransform: "uppercase",
-        letterSpacing: ".06em"
-      }, children: [
-        "Shares to sell (you hold ",
-        position.size.toFixed(2),
-        ")"
-      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, color: C.muted, marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em" }, children: s.sharesLabel(position.size.toFixed(2)) }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }, children: [
-        ["all", "half"].map((m) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            onClick: () => setMode(m),
-            style: chip(mode === m, C.no),
-            children: m === "all" ? `All (${position.size.toFixed(2)})` : `Half (${(position.size / 2).toFixed(2)})`
-          },
-          m
-        )),
+        ["all", "half"].map((m) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setMode(m), style: chip(mode === m, C.no), children: m === "all" ? s.allShares(position.size.toFixed(2)) : s.halfShares((position.size / 2).toFixed(2)) }, m)),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
           "input",
           {
             type: "number",
             min: "0.01",
             step: "0.01",
-            placeholder: "Custom",
+            placeholder: s.customPlaceholder,
             value: mode === "custom" ? custom : "",
             onChange: (e) => {
               setMode("custom");
@@ -7808,24 +8335,9 @@ var PolymarketPopup = (() => {
           }
         )
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
-        fontSize: 11,
-        color: C.muted,
-        marginBottom: 6,
-        fontWeight: 600,
-        textTransform: "uppercase",
-        letterSpacing: ".06em"
-      }, children: "Order type" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 6, marginBottom: 12 }, children: ["FOK", "GTC"].map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "button",
-        {
-          onClick: () => setOrderType(t),
-          style: { ...chip(orderType === t, C.brand), borderRadius: 7, padding: "6px 14px" },
-          children: t === "FOK" ? "\u26A1 Market" : `\u{1F4CC} Limit ${pricePct}%`
-        },
-        t
-      )) }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, color: C.muted, marginBottom: 12, lineHeight: 1.5 }, children: orderType === "FOK" ? "Fills immediately \xB7 accepts up to 3% less USDC" : `Resting limit @ ${pricePct}% \xB7 fills when matched` }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, color: C.muted, marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em" }, children: s.orderTypeLabel }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 6, marginBottom: 12 }, children: ["FOK", "GTC"].map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setOrderType(t), style: { ...chip(orderType === t, C.brand), borderRadius: 7, padding: "6px 14px" }, children: t === "FOK" ? s.orderMarket : s.orderLimit(pricePct) }, t)) }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, color: C.muted, marginBottom: 12, lineHeight: 1.5 }, children: orderType === "FOK" ? s.sellMarketHint : s.orderLimitHint(pricePct) }),
       isValid && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
         background: C.card,
         border: `1px solid ${C.border}`,
@@ -7836,13 +8348,14 @@ var PolymarketPopup = (() => {
         justifyContent: "space-between",
         alignItems: "center"
       }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: C.textMid }, children: "Sell" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: C.textMid }, children: s.sellBtn }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 13, fontWeight: 800, color: C.text }, children: [
           sharesToSell.toFixed(2),
-          " shares"
+          " ",
+          s.shares
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: C.muted }, children: "\u2192" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: C.textMid }, children: "Get \u2248" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: C.textMid }, children: s.getApprox }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 13, fontWeight: 800, color: C.yes }, children: [
           "$",
           estUsdc.toFixed(2),
@@ -7857,7 +8370,7 @@ var PolymarketPopup = (() => {
         borderRadius: 6,
         padding: "6px 10px",
         marginBottom: 10
-      }, children: "Social login detected \u2014 will open Polymarket to complete sell" }),
+      }, children: s.socialSellWarning }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 8 }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onCancel, style: {
           flex: 1,
@@ -7869,7 +8382,7 @@ var PolymarketPopup = (() => {
           background: "transparent",
           color: C.textMid,
           cursor: "pointer"
-        }, children: "Cancel" }),
+        }, children: s.cancel }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
           "button",
           {
@@ -7887,27 +8400,17 @@ var PolymarketPopup = (() => {
               color: "#fff",
               opacity: busy ? 0.7 : 1
             },
-            children: busy ? "\u23F3 Awaiting wallet\u2026" : `Confirm Sell ${position.outcome}`
+            children: busy ? s.awaitingWallet : s.confirmSell(position.outcome)
           }
         )
       ] })
     ] });
   }
-  function MarketCard({
-    market,
-    session,
-    activeOrder,
-    balance,
-    onBuy,
-    onCancel,
-    onSuccess,
-    onError
-  }) {
+  function MarketCard({ market, session, activeOrder, balance, onBuy, onCancel, onSuccess, onError }) {
     const [hover, setHover] = (0, import_react.useState)(false);
     const binary = market.outcomes.length === 2 && market.outcomes[0]?.toLowerCase() === "yes";
     const isOpen = activeOrder?.marketId === market.id;
-    const yPct = Math.round((market.outcomePrices[0] ?? 0.5) * 100);
-    const nPct = 100 - yPct;
+    const yPct = Math.round((market.outcomePrices[0] ?? 0.5) * 100), nPct = 100 - yPct;
     return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
       "div",
       {
@@ -8000,15 +8503,8 @@ var PolymarketPopup = (() => {
       }
     );
   }
-  function PositionCard({
-    position,
-    session,
-    activeSell,
-    onSell,
-    onCancel,
-    onSuccess,
-    onError
-  }) {
+  function PositionCard({ position, session, activeSell, onSell, onCancel, onSuccess, onError }) {
+    const s = useLang();
     const [hover, setHover] = (0, import_react.useState)(false);
     const isOpen = activeSell === position.asset;
     const pnlPos = position.pnl >= 0;
@@ -8054,77 +8550,36 @@ var PolymarketPopup = (() => {
               marginTop: 1
             }, children: position.outcome })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
-            gap: 8,
-            marginBottom: 10
-          }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { background: C.panel, borderRadius: 8, padding: "7px 10px" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
-                fontSize: 9,
-                color: C.muted,
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: ".06em",
-                marginBottom: 3
-              }, children: "Shares" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 13, fontWeight: 800, color: C.text }, children: position.size.toFixed(2) })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { background: C.panel, borderRadius: 8, padding: "7px 10px" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
-                fontSize: 9,
-                color: C.muted,
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: ".06em",
-                marginBottom: 3
-              }, children: "Price" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 13, fontWeight: 800, color: C.text }, children: [
-                curPct,
-                "%",
-                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, color: C.muted, marginLeft: 3 }, children: [
-                  "(avg ",
-                  avgPct,
-                  "%)"
-                ] })
-              ] })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { background: C.panel, borderRadius: 8, padding: "7px 10px" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
-                fontSize: 9,
-                color: C.muted,
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: ".06em",
-                marginBottom: 3
-              }, children: "P&L" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, fontWeight: 800, color: pnlColor }, children: fmtPnl(position.pnl, position.pnlPercent) })
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }, children: [
+            { label: s.sharesCol, val: position.size.toFixed(2), color: C.text },
+            { label: s.priceCol, val: `${curPct}%`, sub: s.avgPct(avgPct), color: C.text },
+            { label: s.pnlCol, val: fmtPnl(position.pnl, position.pnlPercent), color: pnlColor }
+          ].map(({ label, val, sub, color }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { background: C.panel, borderRadius: 8, padding: "7px 10px" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 9, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 3 }, children: label }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 12, fontWeight: 800, color }, children: [
+              val,
+              sub && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: C.muted, marginLeft: 3 }, children: sub })
             ] })
-          ] }),
+          ] }, label)) }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 11, color: C.muted }, children: "Value " }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 11, color: C.muted }, children: [
+                s.valueLabel,
+                " "
+              ] }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 12, fontWeight: 800, color: C.text }, children: [
                 "$",
                 position.currentValue.toFixed(2)
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, color: C.muted }, children: [
-                " ",
-                "/ $",
+                " / $",
                 position.initialValue.toFixed(2),
-                " cost"
+                " ",
+                s.costLabel
               ] })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1 } }),
-            position.closed ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: {
-              fontSize: 11,
-              fontWeight: 700,
-              color: C.muted,
-              background: C.border,
-              borderRadius: 20,
-              padding: "3px 10px"
-            }, children: "Resolved" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 6 }, children: [
+            position.closed ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 11, fontWeight: 700, color: C.muted, background: C.border, borderRadius: 20, padding: "3px 10px" }, children: s.resolvedBadge }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 6 }, children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
                 "a",
                 {
@@ -8141,27 +8596,20 @@ var PolymarketPopup = (() => {
                     padding: "4px 9px",
                     textDecoration: "none"
                   },
-                  children: "View \u2197"
+                  children: s.viewLink
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-                "button",
-                {
-                  onClick: () => onSell(position.asset),
-                  style: {
-                    fontSize: 11,
-                    fontWeight: 800,
-                    background: isOpen ? C.no : C.noDim,
-                    color: isOpen ? "#fff" : C.no,
-                    border: `1px solid ${C.no}55`,
-                    borderRadius: 6,
-                    padding: "4px 12px",
-                    cursor: "pointer",
-                    transition: "background .15s, color .15s"
-                  },
-                  children: isOpen ? "Selling\u2026" : "Sell"
-                }
-              )
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => onSell(position.asset), style: {
+                fontSize: 11,
+                fontWeight: 800,
+                background: isOpen ? C.no : C.noDim,
+                color: isOpen ? "#fff" : C.no,
+                border: `1px solid ${C.no}55`,
+                borderRadius: 6,
+                padding: "4px 12px",
+                cursor: "pointer",
+                transition: "background .15s, color .15s"
+              }, children: isOpen ? s.sellingBtn : s.sellBtn })
             ] })
           ] }),
           isOpen && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
@@ -8170,7 +8618,10 @@ var PolymarketPopup = (() => {
               position,
               session,
               onCancel,
-              onSuccess,
+              onSuccess: (msg) => {
+                onCancel();
+                onSuccess(msg);
+              },
               onError
             }
           )
@@ -8196,58 +8647,61 @@ var PolymarketPopup = (() => {
       ] })
     ] });
   }
-  function SessionPanel({
-    session,
-    loading,
-    noTab,
-    balance,
-    onRefresh
-  }) {
-    if (loading) {
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
-        padding: "10px 16px",
-        background: C.panel,
-        borderBottom: `1px solid ${C.border}`,
-        fontSize: 12,
+  function SessionPanel({ session, loading, noTab, balance, onRefresh }) {
+    const s = useLang();
+    if (loading) return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
+      padding: "10px 16px",
+      background: C.panel,
+      borderBottom: `1px solid ${C.border}`,
+      fontSize: 12,
+      color: C.muted,
+      display: "flex",
+      alignItems: "center",
+      gap: 8
+    }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 8, height: 8, borderRadius: "50%", background: C.muted, animation: "pulse 1.4s infinite" } }),
+      s.checkingSession
+    ] });
+    if (!session) return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "12px 16px", background: C.amberDim, borderBottom: `1px solid ${C.amber}44` }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, fontWeight: 700, color: C.amber, marginBottom: 4 }, children: s.notConnected }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, color: C.textMid, marginBottom: 10, lineHeight: 1.55 }, children: noTab ? s.loginHintNoTab : s.loginHintHasTab }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
+        fontSize: 11,
         color: C.muted,
-        display: "flex",
-        alignItems: "center",
-        gap: 8
+        background: C.border,
+        borderRadius: 6,
+        padding: "7px 10px",
+        marginBottom: 10,
+        lineHeight: 1.55
       }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
-          width: 8,
-          height: 8,
-          borderRadius: "50%",
-          background: C.muted,
-          animation: "pulse 1.4s infinite"
-        } }),
-        "Checking session\u2026"
-      ] });
-    }
-    if (!session) {
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "12px 16px", background: C.amberDim, borderBottom: `1px solid ${C.amber}44` }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, fontWeight: 700, color: C.amber, marginBottom: 4 }, children: "Not connected to Polymarket" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, color: C.textMid, marginBottom: 10, lineHeight: 1.55 }, children: noTab ? "Open polymarket.com in any tab and log in." : "Log in at polymarket.com \u2014 MetaMask, Coinbase, WalletConnect, Google, email all work." }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 8 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => chrome.tabs.create({ url: "https://polymarket.com" }), style: {
-            ...btn(C.amber),
-            flex: 1,
-            padding: "8px",
-            fontSize: 12
-          }, children: "Open Polymarket \u2197" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onRefresh, style: {
-            padding: "8px 14px",
-            fontSize: 12,
-            fontWeight: 600,
-            borderRadius: 8,
-            border: `1px solid ${C.border}`,
-            background: "transparent",
-            color: C.textMid,
-            cursor: "pointer"
-          }, children: "Retry" })
-        ] })
-      ] });
-    }
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontWeight: 700, color: C.textMid }, children: [
+          "\u{1F512} ",
+          s.vpnTitle
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: C.muted }, children: s.vpnFree })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 8 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "button",
+          {
+            onClick: () => chrome.tabs.create({ url: "https://polymarket.com" }),
+            style: { ...btn(C.amber), flex: 1, padding: "8px", fontSize: 12 },
+            children: s.openPolymarket
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onRefresh, style: {
+          padding: "8px 14px",
+          fontSize: 12,
+          fontWeight: 600,
+          borderRadius: 8,
+          border: `1px solid ${C.border}`,
+          background: "transparent",
+          color: C.textMid,
+          cursor: "pointer"
+        }, children: s.retry })
+      ] })
+    ] });
     return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
       padding: "9px 16px",
       background: C.panel,
@@ -8286,17 +8740,10 @@ var PolymarketPopup = (() => {
           borderRadius: 20,
           padding: "2px 8px",
           border: `1px solid ${C.amber}44`
-        }, children: "Social login" })
+        }, children: s.socialLogin })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1 } }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onRefresh, title: "Refresh session", style: {
-        background: "none",
-        border: "none",
-        color: C.muted,
-        cursor: "pointer",
-        fontSize: 14,
-        padding: "2px 4px"
-      }, children: "\u21BB" })
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onRefresh, title: "Refresh", style: { background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 14, padding: "2px 4px" }, children: "\u21BB" })
     ] });
   }
   function Toast({ ok, msg }) {
@@ -8316,11 +8763,8 @@ var PolymarketPopup = (() => {
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { flex: 1 }, children: msg })
     ] });
   }
-  function TabNav({
-    active,
-    onChange,
-    positionCount
-  }) {
+  function TabNav({ active, onChange, positionCount }) {
+    const s = useLang();
     const tabStyle = (t) => ({
       flex: 1,
       padding: "10px 0",
@@ -8337,14 +8781,14 @@ var PolymarketPopup = (() => {
       justifyContent: "center",
       gap: 6
     });
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
-      display: "flex",
-      background: C.panel,
-      borderBottom: `1px solid ${C.border}`
-    }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { style: tabStyle("search"), onClick: () => onChange("search"), children: "\u{1F50D} Search" }),
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", background: C.panel, borderBottom: `1px solid ${C.border}` }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { style: tabStyle("search"), onClick: () => onChange("search"), children: [
+        "\u{1F50D} ",
+        s.tabSearch
+      ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { style: tabStyle("portfolio"), onClick: () => onChange("portfolio"), children: [
-        "\u{1F4BC} Portfolio",
+        "\u{1F4BC} ",
+        s.tabPortfolio,
         positionCount !== null && positionCount > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: {
           fontSize: 10,
           fontWeight: 800,
@@ -8358,11 +8802,21 @@ var PolymarketPopup = (() => {
       ] })
     ] });
   }
-  function PortfolioView({
-    session,
-    onSuccess,
-    onError
-  }) {
+  function LangSwitcher({ lang, setLang }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 4, flexWrap: "wrap" }, children: SUPPORTED_LANGS.map(({ code, label }) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setLang(code), style: {
+      fontSize: 9,
+      fontWeight: 700,
+      padding: "2px 6px",
+      borderRadius: 10,
+      cursor: "pointer",
+      border: `1px solid ${lang === code ? C.brand : C.border}`,
+      background: lang === code ? C.brandDim : "transparent",
+      color: lang === code ? C.brand : C.muted,
+      transition: "all .15s"
+    }, children: label }, code)) });
+  }
+  function PortfolioView({ session, onSuccess, onError }) {
+    const s = useLang();
     const [positions, setPositions] = (0, import_react.useState)([]);
     const [loading, setLoading] = (0, import_react.useState)(false);
     const [loaded, setLoaded] = (0, import_react.useState)(false);
@@ -8371,8 +8825,7 @@ var PolymarketPopup = (() => {
       if (!session) return;
       setLoading(true);
       try {
-        const pos = await getPositions(session.address);
-        setPositions(pos);
+        setPositions(await getPositions(session.address));
       } finally {
         setLoading(false);
         setLoaded(true);
@@ -8381,61 +8834,38 @@ var PolymarketPopup = (() => {
     (0, import_react.useEffect)(() => {
       if (!loaded) load();
     }, [load, loaded]);
-    if (!session) {
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { textAlign: "center", padding: "40px 20px", color: C.muted }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 32, marginBottom: 12 }, children: "\u{1F510}" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, fontWeight: 700, color: C.textMid, marginBottom: 6 }, children: "Connect to Polymarket first" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12 }, children: "Log in at polymarket.com to see your positions" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            onClick: () => chrome.tabs.create({ url: "https://polymarket.com" }),
-            style: { ...btn(C.brand), marginTop: 16, fontSize: 12 },
-            children: "Open Polymarket \u2197"
-          }
-        )
-      ] });
-    }
+    if (!session) return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { textAlign: "center", padding: "40px 20px", color: C.muted }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 32, marginBottom: 12 }, children: "\u{1F510}" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, fontWeight: 700, color: C.textMid, marginBottom: 6 }, children: s.connectFirst }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12 }, children: s.connectFirstSub }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "button",
+        {
+          onClick: () => chrome.tabs.create({ url: "https://polymarket.com" }),
+          style: { ...btn(C.brand), marginTop: 16, fontSize: 12 },
+          children: s.openPolymarket
+        }
+      )
+    ] });
     const open = positions.filter((p) => !p.closed);
     const closed = positions.filter((p) => p.closed);
-    const totalValue = open.reduce((s, p) => s + p.currentValue, 0);
-    const totalPnl = open.reduce((s, p) => s + p.pnl, 0);
+    const totalValue = open.reduce((acc, p) => acc + p.currentValue, 0);
+    const totalPnl = open.reduce((acc, p) => acc + p.pnl, 0);
     return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-      !loading && open.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
-        display: "flex",
-        gap: 0,
-        borderBottom: `1px solid ${C.border}`,
-        background: C.panel
-      }, children: [
-        { label: "Positions", value: String(open.length), color: C.text },
-        { label: "Value", value: `$${totalValue.toFixed(2)}`, color: C.text },
-        { label: "P&L", value: `${totalPnl >= 0 ? "+" : ""}$${totalPnl.toFixed(2)}`, color: totalPnl >= 0 ? C.yes : C.no }
-      ].map(({ label, value, color }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
-        flex: 1,
-        padding: "10px 0",
-        textAlign: "center",
-        borderRight: `1px solid ${C.border}`
-      }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
-          fontSize: 9,
-          color: C.muted,
-          fontWeight: 600,
-          textTransform: "uppercase",
-          letterSpacing: ".06em",
-          marginBottom: 3
-        }, children: label }),
+      !loading && open.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", borderBottom: `1px solid ${C.border}`, background: C.panel }, children: [
+        { label: s.posLabel, value: String(open.length), color: C.text },
+        { label: s.valueLabel, value: `$${totalValue.toFixed(2)}`, color: C.text },
+        { label: s.pnlLabel, value: `${totalPnl >= 0 ? "+" : ""}$${totalPnl.toFixed(2)}`, color: totalPnl >= 0 ? C.yes : C.no }
+      ].map(({ label, value, color }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, padding: "10px 0", textAlign: "center", borderRight: `1px solid ${C.border}` }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 9, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 3 }, children: label }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, fontWeight: 800, color }, children: value })
       ] }, label)) }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "10px 12px", maxHeight: 420, overflowY: "auto" }, children: [
         loading && [1, 2, 3].map((i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SkeletonCard, {}, i)),
         !loading && loaded && positions.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { textAlign: "center", padding: "40px 20px", color: C.muted }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 32, marginBottom: 12 }, children: "\u{1F4ED}" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, fontWeight: 700, color: C.textMid, marginBottom: 6 }, children: "No open positions" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 12, lineHeight: 1.6 }, children: [
-            "You don't hold any shares yet.",
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
-            "Search for a market and place your first trade!"
-          ] })
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, fontWeight: 700, color: C.textMid, marginBottom: 6 }, children: s.noPositions }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, lineHeight: 1.6 }, children: s.noPositionsSub })
         ] }),
         !loading && open.map((p) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
           PositionCard,
@@ -8455,18 +8885,14 @@ var PolymarketPopup = (() => {
           p.asset
         )),
         !loading && closed.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
             fontSize: 10,
             fontWeight: 600,
             color: C.muted,
             textTransform: "uppercase",
             letterSpacing: ".06em",
             padding: "8px 4px 4px"
-          }, children: [
-            "Resolved (",
-            closed.length,
-            ")"
-          ] }),
+          }, children: s.resolved(closed.length) }),
           closed.map((p) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
             PositionCard,
             {
@@ -8492,16 +8918,13 @@ var PolymarketPopup = (() => {
           borderRadius: 20,
           padding: "6px 16px",
           cursor: "pointer"
-        }, children: "\u21BB Refresh positions" }) })
+        }, children: s.refreshBtn }) })
       ] })
     ] });
   }
   var PENDING_TTL = 5 * 60 * 1e3;
-  function SearchView({
-    session,
-    balance,
-    onToast
-  }) {
+  function SearchView({ session, balance, onToast }) {
+    const s = useLang();
     const [query, setQuery] = (0, import_react.useState)("");
     const [markets, setMarkets] = (0, import_react.useState)([]);
     const [searching, setSearching] = (0, import_react.useState)(false);
@@ -8551,13 +8974,13 @@ var PolymarketPopup = (() => {
       initRef.current = true;
       chrome.storage.local.get(["pm_pending_trade", "pm_recents"], (data) => {
         setRecents(data.pm_recents ?? []);
-        const pt = data.pm_pending_trade;
-        if (pt && Date.now() - pt.ts < PENDING_TTL) {
+        const pt2 = data.pm_pending_trade;
+        if (pt2 && Date.now() - pt2.ts < PENDING_TTL) {
           chrome.storage.local.remove("pm_pending_trade");
-          setMarkets([pt.market]);
+          setMarkets([pt2.market]);
           setSearched(true);
-          setOverlayPending({ market: pt.market, outcome: pt.outcome });
-          setActiveOrder({ marketId: pt.market.id, outcome: pt.outcome });
+          setOverlayPending({ market: pt2.market, outcome: pt2.outcome });
+          setActiveOrder({ marketId: pt2.market.id, outcome: pt2.outcome });
           return;
         }
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -8589,7 +9012,7 @@ var PolymarketPopup = (() => {
       }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 18 }, children: "\u26A1" }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, fontWeight: 800, color: C.brand }, children: "Trade staged from page overlay" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, fontWeight: 800, color: C.brand }, children: s.overlayPendingTitle }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 11, color: C.textMid, marginTop: 2 }, children: [
             overlayPending.outcome,
             " \xB7 ",
@@ -8627,7 +9050,7 @@ var PolymarketPopup = (() => {
                 ref: searchRef,
                 type: "text",
                 value: query,
-                placeholder: "Search any topic\u2026",
+                placeholder: s.searchPlaceholder,
                 onChange: (e) => setQuery(e.target.value),
                 onKeyDown: handleKey,
                 onFocus: () => setShowHints(recents.length > 0),
@@ -8678,7 +9101,7 @@ var PolymarketPopup = (() => {
               textTransform: "uppercase",
               letterSpacing: ".06em",
               fontWeight: 600
-            }, children: "Recent" }),
+            }, children: s.recent }),
             recents.map((r) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
               "button",
               {
@@ -8720,7 +9143,7 @@ var PolymarketPopup = (() => {
               opacity: searching || !query.trim() ? 0.5 : 1,
               cursor: searching || !query.trim() ? "not-allowed" : "pointer"
             },
-            children: searching ? "Searching\u2026" : "Search Markets"
+            children: searching ? s.searching : s.searchBtn
           }
         )
       ] }),
@@ -8740,8 +9163,8 @@ var PolymarketPopup = (() => {
         ] }),
         !searching && searched && markets.length === 0 && !searchError && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { textAlign: "center", padding: "28px 16px", color: C.muted }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 28, marginBottom: 10 }, children: "\u{1F50D}" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 13, fontWeight: 600, color: C.textMid }, children: "No active markets found" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, marginTop: 4 }, children: "Try different keywords" })
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 13, fontWeight: 600, color: C.textMid }, children: s.noMarketsFound }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, marginTop: 4 }, children: s.tryDifferentKw })
         ] }),
         !searching && markets.map((m) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
           MarketCard,
@@ -8764,14 +9187,14 @@ var PolymarketPopup = (() => {
         )),
         !searched && !searching && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { textAlign: "center", padding: "32px 20px", color: C.muted }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 32, marginBottom: 12 }, children: "\u{1F4E1}" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, fontWeight: 700, color: C.textMid, marginBottom: 6 }, children: "Search any topic" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, lineHeight: 1.65 }, children: session ? "Find a market, click YES% or NO% to order directly from here" : "Log in at polymarket.com first, then search to place orders" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, fontWeight: 700, color: C.textMid, marginBottom: 6 }, children: s.searchPromptTitle }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, lineHeight: 1.65 }, children: session ? s.searchPromptLoggedIn : s.searchPromptLoggedOut }),
           !session && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
             "button",
             {
               onClick: () => chrome.tabs.create({ url: "https://polymarket.com" }),
               style: { ...btn(C.brand), marginTop: 16, fontSize: 12 },
-              children: "Open Polymarket \u2197"
+              children: s.openPolymarket
             }
           )
         ] })
@@ -8784,7 +9207,7 @@ var PolymarketPopup = (() => {
         alignItems: "center",
         justifyContent: "space-between"
       }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: C.muted }, children: searched && !searching ? `${markets.length} market${markets.length !== 1 ? "s" : ""}` : "Polymarket Radar v1.2" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: C.muted }, children: searched && !searching ? s.marketCount(markets.length) : "v1.2" }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
           "a",
           {
@@ -8806,7 +9229,19 @@ var PolymarketPopup = (() => {
     const [tab, setTab] = (0, import_react.useState)("search");
     const [posCount, setPosCount] = (0, import_react.useState)(null);
     const [toast, setToast] = (0, import_react.useState)(null);
+    const [lang, setLangState] = (0, import_react.useState)("en");
     const toastRef = (0, import_react.useRef)(null);
+    (0, import_react.useEffect)(() => {
+      chrome.storage.local.get("pm_lang", (data) => {
+        const saved = data.pm_lang;
+        setLangState(saved ?? detectLang(navigator.language));
+      });
+    }, []);
+    const setLang = (0, import_react.useCallback)((l) => {
+      setLangState(l);
+      chrome.storage.local.set({ pm_lang: l });
+    }, []);
+    const s = getStrings(lang);
     const showToast = (0, import_react.useCallback)((ok, msg) => {
       setToast({ ok, msg });
       if (toastRef.current) clearTimeout(toastRef.current);
@@ -8836,7 +9271,7 @@ var PolymarketPopup = (() => {
     (0, import_react.useEffect)(() => {
       loadSession();
     }, [loadSession]);
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(LangCtx.Provider, { value: s, children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("style", { children: `
         @keyframes slideDown { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:none } }
         @keyframes pulse     { 0%,100% { opacity:.4 } 50% { opacity:1 } }
@@ -8869,8 +9304,8 @@ var PolymarketPopup = (() => {
             flexShrink: 0
           }, children: "\u{1F3AF}" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, fontWeight: 800, color: C.text, letterSpacing: "-.01em" }, children: "Polymarket Radar" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, color: C.muted, marginTop: 1 }, children: "Trade smarter, faster" })
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, fontWeight: 800, color: C.text, letterSpacing: "-.01em" }, children: s.appName }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, color: C.muted, marginTop: 1 }, children: s.appSubtitle })
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1 } }),
           session && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
@@ -8905,21 +9340,34 @@ var PolymarketPopup = (() => {
         ),
         toast && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Toast, { ok: toast.ok, msg: toast.msg }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabNav, { active: tab, onChange: setTab, positionCount: posCount }),
-        tab === "search" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          SearchView,
-          {
-            session,
-            balance,
-            onToast: showToast
-          }
-        ) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        tab === "search" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SearchView, { session, balance, onToast: showToast }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
           PortfolioView,
           {
             session,
             onSuccess: (msg) => showToast(true, msg),
             onError: (msg) => showToast(false, msg)
           }
-        )
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
+          padding: "6px 16px 8px",
+          borderTop: `1px solid ${C.border}`,
+          background: C.panel,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between"
+        }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LangSwitcher, { lang, setLang }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "a",
+            {
+              href: "https://polymarket.com",
+              target: "_blank",
+              rel: "noopener",
+              style: { fontSize: 10, color: C.brand, fontWeight: 700, textDecoration: "none" },
+              children: "polymarket.com \u2197"
+            }
+          )
+        ] })
       ] })
     ] });
   }

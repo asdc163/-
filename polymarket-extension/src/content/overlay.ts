@@ -8,9 +8,11 @@
  *    → shows "Tap 🎯 to trade now" banner (no jarring tab navigation)
  *  - Wallet users pick up the pending trade when they open the popup
  *  - Social login fallback: also shows "Or open at Polymarket ↗"
+ *  - Full i18n: reads lang from chrome.storage.local → content/index.ts calls setLang()
  */
 
 import type { PolymarketMarket } from '../shared/types';
+import { getStrings, LangCode, Strings } from '../shared/i18n';
 
 const OVERLAY_ID       = '__polymarket_radar_root__';
 const DISMISS_TIMEOUT  = 3 * 60 * 1000; // 3 min: re-open allowed after this
@@ -294,61 +296,18 @@ function fmtTime(endDate: string): string {
   return h > 0 ? `${h}h` : '<1h';
 }
 
-function renderCard(m: PolymarketMarket, idx: number): string {
-  const binary = m.outcomes.length === 2 && m.outcomes[0]?.toLowerCase() === 'yes';
-  const vol    = fmtVol(m.volume24hr || m.volume);
-  const time   = fmtTime(m.endDate);
-  const yPct   = Math.round((m.outcomePrices[0] ?? 0.5) * 100);
-  const nPct   = 100 - yPct;
-
-  let oddsHtml = '';
-  if (binary) {
-    oddsHtml = `
-      <div class="odds-labels">
-        <span class="yes-lbl">YES ${yPct}%</span>
-        <span class="no-lbl">NO ${nPct}%</span>
-      </div>
-      <div class="odds-track"><div class="odds-fill" style="width:${yPct}%"></div></div>`;
-  } else {
-    const chips = m.outcomes.slice(0, 4).map((o, i) =>
-      `<span class="chip">${esc(o)}${m.outcomePrices[i] != null
-        ? `<span class="chip-pct">${Math.round(m.outcomePrices[i]*100)}%</span>` : ''
-      }</span>`
-    ).join('');
-    oddsHtml = `<div class="chips">${chips}</div>`;
-  }
-
-  // YES/NO are plain buttons (no href) — click is handled via JS delegation
-  // which stores a pending trade and shows the banner
-  const actionsHtml = binary
-    ? `<div class="btn-row">
-        <button class="btn-yes" data-idx="${idx}" data-outcome="Yes">YES ${yPct}% — Trade ⚡</button>
-        <button class="btn-no"  data-idx="${idx}" data-outcome="No">NO ${nPct}% — Trade ⚡</button>
-       </div>`
-    : `<div class="btn-row">
-        <a class="btn-view" href="${esc(m.url)}" target="_blank" rel="noopener">
-          Trade on Polymarket ↗
-        </a>
-       </div>`;
-
-  return `
-    <div class="market-card">
-      <div class="market-q">${esc(m.question)}</div>
-      ${oddsHtml}
-      <div class="meta">
-        <span>📊 ${vol}</span>
-        ${time ? `<span class="meta-sep">·</span><span>⏱ ${time}</span>` : ''}
-        <a class="meta-link" href="${esc(m.url)}" target="_blank" rel="noopener">View ↗</a>
-      </div>
-      ${actionsHtml}
-    </div>`;
-}
-
 // ─── Callback types ───────────────────────────────────────────────────────────
 export type BetCallback = (
   market: PolymarketMarket,
   outcome: 'Yes' | 'No',
 ) => Promise<void>;
+
+// ─── Body state for language re-render ────────────────────────────────────────
+type BodyState =
+  | { type: 'loading'; keywords: string[] }
+  | { type: 'markets'; markets: PolymarketMarket[]; keywords: string[] }
+  | { type: 'error'; msg: string }
+  | null;
 
 // ─── PolymarketOverlay ────────────────────────────────────────────────────────
 export class PolymarketOverlay {
@@ -362,26 +321,37 @@ export class PolymarketOverlay {
 
   private isOpen = false;
   private markets: PolymarketMarket[] = [];
+  private bodyState: BodyState = null;
 
   // Dismiss memory: track keyword key + time of last dismiss
   private dismissedKey = '';
   private dismissedAt  = 0;
+  private _currentKey  = '';
 
-  // Current pending trade info (for banner)
+  // Current pending trade info (for banner restore after lang switch)
   private pendingMarket: PolymarketMarket | null = null;
   private pendingOutcome: 'Yes' | 'No' = 'Yes';
+
+  // i18n
+  private langCode: LangCode;
+  private s: Strings;
 
   /** Called when user clicks YES/NO. Override in content/index.ts. */
   onBet: BetCallback = async (market) => { window.open(market.url, '_blank'); };
 
-  constructor() {
-    this.host    = document.createElement('div');
-    this.host.id = OVERLAY_ID;
-    this.shadow  = this.host.attachShadow({ mode: 'closed' });
+  constructor(lang: LangCode = 'en') {
+    this.langCode = lang;
+    this.s        = getStrings(lang);
+    this.host     = document.createElement('div');
+    this.host.id  = OVERLAY_ID;
+    this.shadow   = this.host.attachShadow({ mode: 'closed' });
     this.render();
   }
 
+  // ── Render / re-render ────────────────────────────────────────────────────
+
   private render() {
+    const s = this.s;
     this.shadow.innerHTML = `
       <style>${STYLES}</style>
       <div class="container">
@@ -390,43 +360,43 @@ export class PolymarketOverlay {
             <div class="header-left">
               <div class="logo">🎯</div>
               <div>
-                <div class="panel-title">Polymarket Radar</div>
-                <div class="panel-sub" id="sub">Detecting topics…</div>
+                <div class="panel-title">${esc(s.appName)}</div>
+                <div class="panel-sub" id="sub">${esc(s.detectingTopics)}</div>
               </div>
             </div>
-            <button class="close-btn" id="close-btn" title="Close (won't reopen for this topic)">✕</button>
+            <button class="close-btn" id="close-btn" title="${esc(s.closeHint)}">✕</button>
           </div>
 
           <!-- Pending trade banner (hidden until user clicks YES/NO) -->
           <div class="pending-banner" id="pending-banner">
-            <div class="pending-banner-title">⚡ Ready to trade!</div>
+            <div class="pending-banner-title">${esc(s.readyToTrade)}</div>
             <div class="pending-banner-sub" id="pending-sub">
-              Click the 🎯 toolbar icon to confirm your trade in the popup.
+              ${esc(s.pendingSubDefault)}
             </div>
             <div class="pending-banner-row">
               <button class="pending-btn-primary" id="pending-open-popup">
-                🎯 Open Popup to Trade
+                ${esc(s.openPopupBtn)}
               </button>
               <a class="pending-btn-secondary" id="pending-polymarket-link"
                  href="https://polymarket.com" target="_blank" rel="noopener">
                 Polymarket ↗
               </a>
             </div>
-            <button class="pending-dismiss" id="pending-dismiss">dismiss</button>
+            <button class="pending-dismiss" id="pending-dismiss">${esc(s.dismissBtn)}</button>
           </div>
 
           <div class="panel-body" id="panel-body">
             <div class="state-wrap">
               <div class="spinner"></div>
-              <span>Scanning markets…</span>
+              <span>${esc(s.scanningMarkets)}</span>
             </div>
           </div>
           <div class="panel-footer">
-            Click YES/NO to stage a trade · confirm via the 🎯 popup ·
+            ${esc(s.footerHint)} ·
             <a class="footer-link" href="https://polymarket.com" target="_blank">polymarket.com</a>
           </div>
         </div>
-        <button class="tab" id="tab-btn" title="Polymarket Radar — relevant prediction markets">
+        <button class="tab" id="tab-btn" title="Polymarket Radar">
           <span class="tab-badge" id="tab-badge"></span>
           <span class="tab-icon">🎯</span>MARKETS
         </button>
@@ -441,14 +411,6 @@ export class PolymarketOverlay {
     this.shadow.getElementById('tab-btn')!.addEventListener('click', () => this.togglePanel());
     this.shadow.getElementById('close-btn')!.addEventListener('click', () => this.dismiss());
 
-    // Pending trade banner actions
-    this.shadow.getElementById('pending-open-popup')!.addEventListener('click', () => {
-      // We can't programmatically open the popup, but we can open a
-      // chrome-extension page that tells the user what to do, or just
-      // navigate to the extension. Most users know to click the toolbar icon.
-      // The badge on the tab button also guides them.
-      // Best we can do: show a helpful alert... or just let the banner speak.
-    });
     this.shadow.getElementById('pending-dismiss')!.addEventListener('click', () => {
       this.hidePendingBanner();
     });
@@ -465,6 +427,55 @@ export class PolymarketOverlay {
     });
   }
 
+  private renderCard(m: PolymarketMarket, idx: number): string {
+    const s      = this.s;
+    const binary = m.outcomes.length === 2 && m.outcomes[0]?.toLowerCase() === 'yes';
+    const vol    = fmtVol(m.volume24hr || m.volume);
+    const time   = fmtTime(m.endDate);
+    const yPct   = Math.round((m.outcomePrices[0] ?? 0.5) * 100);
+    const nPct   = 100 - yPct;
+
+    let oddsHtml = '';
+    if (binary) {
+      oddsHtml = `
+        <div class="odds-labels">
+          <span class="yes-lbl">YES ${yPct}%</span>
+          <span class="no-lbl">NO ${nPct}%</span>
+        </div>
+        <div class="odds-track"><div class="odds-fill" style="width:${yPct}%"></div></div>`;
+    } else {
+      const chips = m.outcomes.slice(0, 4).map((o, i) =>
+        `<span class="chip">${esc(o)}${m.outcomePrices[i] != null
+          ? `<span class="chip-pct">${Math.round(m.outcomePrices[i]*100)}%</span>` : ''
+        }</span>`
+      ).join('');
+      oddsHtml = `<div class="chips">${chips}</div>`;
+    }
+
+    const actionsHtml = binary
+      ? `<div class="btn-row">
+          <button class="btn-yes" data-idx="${idx}" data-outcome="Yes">${esc(s.yesTradeBtn(yPct))}</button>
+          <button class="btn-no"  data-idx="${idx}" data-outcome="No">${esc(s.noTradeBtn(nPct))}</button>
+         </div>`
+      : `<div class="btn-row">
+          <a class="btn-view" href="${esc(m.url)}" target="_blank" rel="noopener">
+            ${esc(s.tradeOnPoly)}
+          </a>
+         </div>`;
+
+    return `
+      <div class="market-card">
+        <div class="market-q">${esc(m.question)}</div>
+        ${oddsHtml}
+        <div class="meta">
+          <span>📊 ${vol}</span>
+          ${time ? `<span class="meta-sep">·</span><span>⏱ ${time}</span>` : ''}
+          <a class="meta-link" href="${esc(m.url)}" target="_blank" rel="noopener">${esc(s.viewLink2)}</a>
+        </div>
+        ${actionsHtml}
+      </div>`;
+  }
+
   // ── Public API ──────────────────────────────────────────────────────────────
 
   mount() {
@@ -473,6 +484,25 @@ export class PolymarketOverlay {
   }
   unmount() { this.host.remove(); }
   setWalletConnected(_: boolean) {}
+
+  /** Update language. Re-renders static chrome and restores current body state. */
+  setLang(lang: LangCode) {
+    if (lang === this.langCode) return;
+    this.langCode = lang;
+    this.s        = getStrings(lang);
+    const wasOpen = this.isOpen;
+    this.render();
+    if (wasOpen) this.openPanel();
+    // Restore body content in new language
+    const st = this.bodyState;
+    if (st?.type === 'loading')  this.setLoading(st.keywords);
+    else if (st?.type === 'markets') this.setMarkets(st.markets, st.keywords);
+    else if (st?.type === 'error')   this.setError(st.msg);
+    // Restore pending banner
+    if (this.pendingMarket) this.showPendingBanner(this.pendingMarket, this.pendingOutcome);
+  }
+
+  getLang(): LangCode { return this.langCode; }
 
   togglePanel() { this.isOpen ? this.closePanel() : this.openPanel(); }
 
@@ -493,8 +523,6 @@ export class PolymarketOverlay {
     this.dismissedAt  = Date.now();
   }
 
-  private _currentKey = '';
-
   /** Whether auto-open is suppressed for the current keyword set. */
   private isDismissed(): boolean {
     if (this.dismissedKey !== this._currentKey) return false;
@@ -503,11 +531,14 @@ export class PolymarketOverlay {
 
   setLoading(keywords: string[] = []) {
     this._currentKey = keywords.join('\x00');
-    if (keywords.length) this.subEl.textContent = `Searching: ${keywords.slice(0,4).join(', ')}`;
+    this.bodyState   = { type: 'loading', keywords };
+    if (keywords.length) {
+      this.subEl.textContent = this.s.searchingKw(keywords.slice(0, 4).join(', '));
+    }
     this.bodyEl.innerHTML = `
       <div class="state-wrap">
         <div class="spinner"></div>
-        <span>Searching markets…</span>
+        <span>${esc(this.s.searchingMarkets)}</span>
       </div>`;
     // Auto-open on new topic (but not if user dismissed this topic recently)
     if (!this.isOpen && !this.isDismissed()) this.openPanel();
@@ -515,28 +546,31 @@ export class PolymarketOverlay {
 
   setMarkets(markets: PolymarketMarket[], keywords: string[]) {
     this._currentKey = keywords.join('\x00');
-    this.markets = markets;
+    this.markets     = markets;
+    this.bodyState   = { type: 'markets', markets, keywords };
+
     this.subEl.textContent = keywords.length
-      ? `Topics: ${keywords.slice(0, 4).join(', ')}`
-      : 'No topics detected';
+      ? this.s.topicsKw(keywords.slice(0, 4).join(', '))
+      : this.s.noTopics;
 
     if (markets.length === 0) {
       this.bodyEl.innerHTML = `
         <div class="state-wrap">
           <span class="state-icon">🔍</span>
-          <span>No active markets for current content</span>
+          <span>${esc(this.s.noMarketsOverlay)}</span>
         </div>`;
-      // Don't auto-open when no results — only close if already open and empty
+      // Don't auto-open when no results
       return;
     }
 
-    this.bodyEl.innerHTML = markets.map((m, i) => renderCard(m, i)).join('');
+    this.bodyEl.innerHTML = markets.map((m, i) => this.renderCard(m, i)).join('');
 
     // Auto-open only if user hasn't dismissed this topic
     if (!this.isOpen && !this.isDismissed()) this.openPanel();
   }
 
   setError(msg: string) {
+    this.bodyState = { type: 'error', msg };
     this.bodyEl.innerHTML = `
       <div class="state-wrap">
         <span class="state-icon">⚠️</span>
@@ -557,8 +591,7 @@ export class PolymarketOverlay {
     );
 
     const subEl = this.shadow.getElementById('pending-sub')!;
-    subEl.textContent =
-      `${outcome} @ ${pct}% staged — click the 🎯 icon in your toolbar to confirm.`;
+    subEl.textContent = this.s.pendingSubDetail(outcome, pct);
 
     const linkEl = this.shadow.getElementById('pending-polymarket-link') as HTMLAnchorElement;
     linkEl.href = market.url;
