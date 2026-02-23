@@ -26,18 +26,35 @@ export interface SearchResult {
 
 /**
  * Session read from polymarket.com's localStorage after the user logs in.
- * Works regardless of login method (MetaMask, Coinbase, WalletConnect, Privy/social).
- * Contains the CLOB L2 API credentials — no wallet signing needed for request auth.
+ * All login methods work (MetaMask, Coinbase, WalletConnect, Privy/social).
  */
 export interface PolySession {
-  address: string;         // wallet address (lowercase)
-  apiKey: string;          // CLOB L2 API key
-  secret: string;          // CLOB L2 secret (used for HMAC request signing)
-  passphrase: string;      // CLOB L2 passphrase
-  hasEthProvider: boolean; // true = window.ethereum found → in-extension signing supported
+  address: string;
+  apiKey: string;
+  secret: string;
+  passphrase: string;
+  hasEthProvider: boolean;
 }
 
-// Unsigned order struct for EIP-712 signing (done via page's window.ethereum)
+/** A user's open position in a Polymarket market. */
+export interface Position {
+  asset: string;        // CLOB token ID (used for sell orders)
+  title: string;        // market question
+  slug: string;         // market slug → URL
+  outcome: string;      // "Yes" or "No"
+  outcomeIndex: number; // 0 or 1
+  size: number;         // shares held
+  avgPrice: number;     // average entry price (0–1)
+  currentPrice: number; // current market price (0–1)
+  initialValue: number; // USDC spent
+  currentValue: number; // current USDC value
+  pnl: number;          // P&L in USDC
+  pnlPercent: number;   // P&L in %
+  negRisk: boolean;
+  closed: boolean;      // market resolved?
+}
+
+// Unsigned order for EIP-712 signing
 export interface UnsignedOrder {
   salt: string;
   maker: string;
@@ -53,7 +70,6 @@ export interface UnsignedOrder {
   signatureType: string; // '0' = EOA
 }
 
-// Signed order ready for CLOB API submission
 export interface ClobOrderPayload extends UnsignedOrder {
   signature: string;
   negRisk: boolean;
@@ -62,7 +78,13 @@ export interface ClobOrderPayload extends UnsignedOrder {
 export interface OrderParams {
   outcome: 'Yes' | 'No';
   usdcAmount: number;
-  orderType: 'FOK' | 'GTC'; // FOK = market order (fill now), GTC = limit at current price
+  orderType: 'FOK' | 'GTC';
+}
+
+export interface SellParams {
+  position: Position;
+  sharesToSell: number;
+  orderType: 'FOK' | 'GTC';
 }
 
 export interface PlacedOrder {
@@ -73,19 +95,14 @@ export interface PlacedOrder {
   price: number;
 }
 
-// ─── Background message types ─────────────────────────────────────────────
-
+// ─── Background message types ─────────────────────────────────────────────────
 export type BgMessage =
-  // Market search
   | { type: 'SEARCH_MARKETS'; keywords: string[] }
   | { type: 'SEARCH_RESULT'; result: SearchResult }
   | { type: 'SEARCH_ERROR'; error: string }
-
-  // Session: reads CLOB credentials from polymarket.com tab's localStorage
   | { type: 'GET_SESSION' }
   | { type: 'SESSION_RESULT'; session: PolySession | null; noTab: boolean }
-
-  // Order placement via the existing Polymarket page session
   | { type: 'PLACE_ORDER'; session: PolySession; params: OrderParams; market: PolymarketMarket }
+  | { type: 'SELL_POSITION'; session: PolySession; sellParams: SellParams }
   | { type: 'ORDER_SUCCESS'; result: PlacedOrder }
   | { type: 'ORDER_ERROR'; error: string };

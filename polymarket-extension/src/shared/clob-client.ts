@@ -1,14 +1,11 @@
 /**
- * Polymarket CLOB API client.
+ * Polymarket CLOB + Data API client.
  *
- * Handles:
- *   - L1 auth: derive API key via EIP-712 signature (ClobAuthDomain)
- *   - L2 auth: HMAC-SHA256 request signing for trading endpoints
- *   - Order submission: POST /order with signed CLOB order struct
- *   - Balance fetch: GET /positions (Data API)
+ * All requests go directly from the user's browser to Polymarket's APIs.
+ * No central server, no shared API key — 100% distributed / zero-infra cost.
  */
 
-import type { PolySession, ClobOrderPayload, PlacedOrder } from './types';
+import type { PolySession, ClobOrderPayload, PlacedOrder, Position } from './types';
 
 // Minimal auth interface — both PolySession and legacy WalletState satisfy this
 type ClobAuth = Pick<PolySession, 'address' | 'apiKey' | 'secret' | 'passphrase'>;
@@ -133,7 +130,7 @@ export async function getOpenOrders(wallet: ClobAuth) {
   return res.json();
 }
 
-// ─── Get Polymarket USDC balance (from Data API) ─────────────────────────
+// ─── Get Polymarket USDC balance (Data API) ──────────────────────────────────
 
 export async function getPolyBalance(address: string): Promise<number> {
   try {
@@ -142,7 +139,6 @@ export async function getPolyBalance(address: string): Promise<number> {
     );
     if (!res.ok) return 0;
     const data = await res.json();
-    // Response is usually an array of { asset, balance }
     if (Array.isArray(data)) {
       const usdc = data.find(
         (b: { asset?: string; balance?: string }) =>
@@ -150,9 +146,54 @@ export async function getPolyBalance(address: string): Promise<number> {
       );
       return usdc ? parseFloat(usdc.balance ?? '0') : 0;
     }
-    // Or a direct { balance: number }
     return parseFloat(data?.balance ?? data?.usdc ?? '0');
   } catch {
     return 0;
+  }
+}
+
+// ─── Get open positions (Data API) ───────────────────────────────────────────
+//
+// Fully client-side: each user's extension queries with THEIR OWN address.
+// Zero central server. Zero infra cost on our side.
+
+export async function getPositions(address: string): Promise<Position[]> {
+  try {
+    const res = await fetch(
+      `https://data-api.polymarket.com/positions?user=${address.toLowerCase()}&sizeThreshold=0.01`
+    );
+    if (!res.ok) return [];
+    const raw = await res.json();
+    if (!Array.isArray(raw)) return [];
+
+    return raw
+      .map((d: Record<string, unknown>) => {
+        const size         = parseFloat(String(d.size  ?? d.amount      ?? '0'));
+        const currentValue = parseFloat(String(d.currentValue ?? d.current_value ?? '0'));
+        // currentPrice may not be returned directly; derive from currentValue/size
+        const currentPrice = parseFloat(String(
+          d.currentPrice ?? d.price ?? d.curPrice ??
+          (size > 0 ? currentValue / size : 0)
+        ));
+        return {
+          asset:        String(d.asset        ?? d.tokenId    ?? d.token_id ?? ''),
+          title:        String(d.title        ?? d.question   ?? d.market   ?? ''),
+          slug:         String(d.slug         ?? d.marketSlug ?? ''),
+          outcome:      String(d.outcome      ?? d.side       ?? 'Yes'),
+          outcomeIndex: Number(d.outcomeIndex ?? d.outcome_index ?? 0),
+          size,
+          avgPrice:     parseFloat(String(d.avgPrice     ?? d.avg_price     ?? '0')),
+          currentPrice,
+          initialValue: parseFloat(String(d.initialValue ?? d.initial_value ?? '0')),
+          currentValue,
+          pnl:          parseFloat(String(d.pnl          ?? d.unrealizedPnl ?? '0')),
+          pnlPercent:   parseFloat(String(d.pnlPercent   ?? d.pnl_percent   ?? '0')),
+          negRisk:      Boolean(d.negRisk ?? d.neg_risk ?? false),
+          closed:       Boolean(d.closed   ?? d.resolved  ?? false),
+        } satisfies Position;
+      })
+      .filter(p => p.size > 0.001 && p.asset);
+  } catch {
+    return [];
   }
 }
