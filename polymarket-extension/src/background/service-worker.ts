@@ -26,12 +26,39 @@ const CTF_EXCHANGE    = '0x4bFb41d5B3570DeFd03C39a9A4D8dE6Bd8B8982e';
 const NEG_RISK_CTF_EX = '0xC5d563A36AE78145C45a50134d48A1a293c969E1';
 const POLYGON_CHAIN_ID = 137;
 
-// ─── Search cache (60s TTL) ───────────────────────────────────────────────
+// ─── Search cache (90s TTL, persisted in chrome.storage.session) ─────────────
+// chrome.storage.session survives service-worker restarts (Chrome kills idle SW
+// after ~30s), so cached results are still available when the SW wakes back up.
 
 import type { SearchResult } from '../shared/types';
 interface CacheEntry { result: SearchResult; expiresAt: number }
-const CACHE_TTL = 60_000;
-const cache = new Map<string, CacheEntry>();
+const CACHE_TTL = 90_000;
+// In-memory mirror of storage.session for fast reads within the same SW lifetime
+const memCache = new Map<string, CacheEntry>();
+
+async function getCached(key: string): Promise<SearchResult | null> {
+  // Check in-memory first (zero latency)
+  const mem = memCache.get(key);
+  if (mem && mem.expiresAt > Date.now()) return mem.result;
+  // Fall back to storage.session (survives SW restarts)
+  try {
+    const data = await chrome.storage.session.get(`pm_cache_${key}`);
+    const entry = data[`pm_cache_${key}`] as CacheEntry | undefined;
+    if (entry && entry.expiresAt > Date.now()) {
+      memCache.set(key, entry); // re-warm in-memory
+      return entry.result;
+    }
+  } catch { /* storage.session not available in older Chrome */ }
+  return null;
+}
+
+async function setCached(key: string, result: SearchResult): Promise<void> {
+  const entry: CacheEntry = { result, expiresAt: Date.now() + CACHE_TTL };
+  memCache.set(key, entry);
+  try {
+    await chrome.storage.session.set({ [`pm_cache_${key}`]: entry });
+  } catch { /* ignore */ }
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -104,16 +131,17 @@ chrome.runtime.onMessage.addListener(
       // ── Market search ─────────────────────────────────────────────────
       case 'SEARCH_MARKETS': {
         const key = message.keywords.join(',');
-        const hit = cache.get(key);
-        if (hit && hit.expiresAt > Date.now()) {
-          sendResponse({ type: 'SEARCH_RESULT', result: hit.result });
-          return true;
-        }
-        searchMarkets(message.keywords)
-          .then(markets => {
-            const result: SearchResult = { markets, keywords: message.keywords, timestamp: Date.now() };
-            cache.set(key, { result, expiresAt: Date.now() + CACHE_TTL });
-            sendResponse({ type: 'SEARCH_RESULT', result });
+        getCached(key)
+          .then(cached => {
+            if (cached) {
+              sendResponse({ type: 'SEARCH_RESULT', result: cached });
+              return;
+            }
+            return searchMarkets(message.keywords).then(async markets => {
+              const result: SearchResult = { markets, keywords: message.keywords, timestamp: Date.now() };
+              await setCached(key, result);
+              sendResponse({ type: 'SEARCH_RESULT', result });
+            });
           })
           .catch(err =>
             sendResponse({ type: 'SEARCH_ERROR', error: String((err as Error)?.message ?? err) })
@@ -234,10 +262,10 @@ chrome.runtime.onMessage.addListener(
   }
 );
 
-// Prune stale cache entries every 2 min
+// Prune stale in-memory entries every 2 min (storage.session auto-expires via TTL check)
 setInterval(() => {
   const now = Date.now();
-  for (const [k, v] of cache) if (v.expiresAt <= now) cache.delete(k);
+  for (const [k, v] of memCache) if (v.expiresAt <= now) memCache.delete(k);
 }, 120_000);
 
 export {};

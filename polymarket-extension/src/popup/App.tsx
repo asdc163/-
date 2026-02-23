@@ -970,6 +970,8 @@ function PortfolioView({
 }
 
 // ─── Search View ──────────────────────────────────────────────────────────────
+const PENDING_TTL = 5 * 60 * 1000; // 5 min
+
 function SearchView({
   session, balance, onToast,
 }: {
@@ -977,14 +979,15 @@ function SearchView({
   balance: number | null;
   onToast: (ok: boolean, msg: string) => void;
 }) {
-  const [query,       setQuery]       = useState('');
-  const [markets,     setMarkets]     = useState<PolymarketMarket[]>([]);
-  const [searching,   setSearching]   = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [searched,    setSearched]    = useState(false);
-  const [recents,     setRecents]     = useState<string[]>([]);
-  const [showHints,   setShowHints]   = useState(false);
-  const [activeOrder, setActiveOrder] = useState<{ marketId: string; outcome: 'Yes' | 'No' } | null>(null);
+  const [query,              setQuery]              = useState('');
+  const [markets,            setMarkets]            = useState<PolymarketMarket[]>([]);
+  const [searching,          setSearching]          = useState(false);
+  const [searchError,        setSearchError]        = useState<string | null>(null);
+  const [searched,           setSearched]           = useState(false);
+  const [recents,            setRecents]            = useState<string[]>([]);
+  const [showHints,          setShowHints]          = useState(false);
+  const [activeOrder,        setActiveOrder]        = useState<{ marketId: string; outcome: 'Yes' | 'No' } | null>(null);
+  const [overlayPending,     setOverlayPending]     = useState<{ market: PolymarketMarket; outcome: 'Yes' | 'No' } | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const initRef   = useRef(false);
 
@@ -1007,6 +1010,7 @@ function SearchView({
     setSearchError(null);
     setSearched(true);
     setActiveOrder(null);
+    setOverlayPending(null);
     setShowHints(false);
     saveRecent(trimmed);
     try {
@@ -1023,17 +1027,37 @@ function SearchView({
     }
   }, [saveRecent]);
 
-  // Auto-search from active tab on first mount
+  // On mount: check for pending trade from overlay FIRST, then fall back to tab-title auto-search
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
-    chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
-      const tab = tabs[0];
-      if (!tab?.title || tab.url?.includes('polymarket.com')) return;
-      const kw = keywordsFromTitle(tab.title);
-      if (!kw) return;
-      setQuery(kw);
-      doSearch(kw);
+
+    chrome.storage.local.get(['pm_pending_trade', 'pm_recents'], data => {
+      setRecents(data.pm_recents ?? []);
+
+      const pt = data.pm_pending_trade as
+        { market: PolymarketMarket; outcome: 'Yes' | 'No'; ts: number } | undefined;
+
+      if (pt && Date.now() - pt.ts < PENDING_TTL) {
+        // ── Pending trade from overlay: pre-fill everything ──────────────
+        chrome.storage.local.remove('pm_pending_trade');
+        setMarkets([pt.market]);
+        setSearched(true);
+        setOverlayPending({ market: pt.market, outcome: pt.outcome });
+        // Auto-open the order panel
+        setActiveOrder({ marketId: pt.market.id, outcome: pt.outcome });
+        return; // skip tab-title auto-search
+      }
+
+      // ── No pending trade: auto-search from active tab title ─────────────
+      chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
+        const tab = tabs[0];
+        if (!tab?.title || tab.url?.includes('polymarket.com')) return;
+        const kw = keywordsFromTitle(tab.title);
+        if (!kw) return;
+        setQuery(kw);
+        doSearch(kw);
+      });
     });
   }, [doSearch]);
 
@@ -1044,6 +1068,32 @@ function SearchView({
 
   return (
     <>
+      {/* ── Pending trade banner (from overlay YES/NO click) ── */}
+      {overlayPending && (
+        <div style={{
+          padding: '10px 16px',
+          background: C.brandDim,
+          borderBottom: `1px solid ${C.brand}44`,
+          display: 'flex', alignItems: 'center', gap: 10,
+          animation: 'slideDown .2s ease',
+        }}>
+          <span style={{ fontSize: 18 }}>⚡</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: C.brand }}>
+              Trade staged from page overlay
+            </div>
+            <div style={{ fontSize: 11, color: C.textMid, marginTop: 2 }}>
+              {overlayPending.outcome} · {overlayPending.market.question.slice(0, 60)}
+              {overlayPending.market.question.length > 60 ? '…' : ''}
+            </div>
+          </div>
+          <button onClick={() => { setOverlayPending(null); setActiveOrder(null); }} style={{
+            background: 'none', border: 'none', color: C.muted, cursor: 'pointer',
+            fontSize: 16, padding: '2px 4px',
+          }}>×</button>
+        </div>
+      )}
+
       {/* Search bar */}
       <div style={{ padding: '12px 16px', background: C.panel, borderBottom: `1px solid ${C.border}` }}>
         <div style={{ position: 'relative' }}>

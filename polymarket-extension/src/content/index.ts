@@ -4,15 +4,17 @@
  * Extracts keywords from the current page → searches Polymarket via background →
  * displays results in a floating overlay.
  *
+ * YES/NO click flow:
+ *  1. Store {market, outcome} in chrome.storage.local as "pending trade"
+ *  2. Show "Tap 🎯 toolbar icon to confirm" banner in overlay
+ *  3. Popup reads the pending trade on next open → auto-fills the order panel
+ *
  * Timing design:
- *  - DEBOUNCE_MS: waits for content to settle before searching
+ *  - DEBOUNCE_MS:      waits for content to settle before searching
  *  - POLL_INTERVAL_MS: periodic refresh while tab is visible
- *  - STALE_MS: forces a re-search if the tab was hidden for a while and
- *    the user returns (content may have changed without triggering observers)
- *  - Polling is completely PAUSED while the tab is hidden (document.hidden)
- *    → saves API quota and battery
- *  - Service-worker restarts (Chrome kills idle SW after ~30s) are caught
- *    and retried once with a short backoff
+ *  - STALE_MS:         forces a re-search if tab was hidden and user returns
+ *  - Polling pauses while tab is hidden (saves API quota + battery)
+ *  - Service-worker restarts (Chrome kills idle SW after ~30s) are retried once
  */
 
 import { extractFromTwitter } from './extractors/twitter';
@@ -20,9 +22,12 @@ import { extractFromYouTube } from './extractors/youtube';
 import { PolymarketOverlay } from './overlay';
 import type { PolymarketMarket } from '../shared/types';
 
-const POLL_INTERVAL_MS = 12_000; // Poll every 12s while visible
-const DEBOUNCE_MS      =  2_000; // Wait 2s after keyword change before searching
+const POLL_INTERVAL_MS = 15_000; // Poll every 15s while visible
+const DEBOUNCE_MS      =  2_000; // Wait 2s after keyword change
 const STALE_MS         = 45_000; // Re-search after 45s hidden+returned
+
+// Pending trade TTL: popup must pick it up within 5 minutes
+const PENDING_TTL_MS = 5 * 60 * 1000;
 
 type Extractor = () => string[];
 
@@ -45,10 +50,21 @@ async function init() {
   const overlay = new PolymarketOverlay();
   overlay.mount();
 
-  // Bet buttons → open market on polymarket.com
-  // (quick-ordering with wallet signing is done via the popup)
-  overlay.onBet = async (market: PolymarketMarket) => {
-    window.open(market.url, '_blank');
+  // ── YES/NO bet handler ───────────────────────────────────────────────────
+  // Store the pending trade in chrome.storage.local so the popup can pick it up.
+  // Show a banner in the overlay guiding the user to click the toolbar icon.
+  overlay.onBet = async (market: PolymarketMarket, outcome: 'Yes' | 'No') => {
+    // 1. Store pending trade for popup pickup
+    chrome.storage.local.set({
+      pm_pending_trade: {
+        market,
+        outcome,
+        ts: Date.now(),
+      },
+    });
+
+    // 2. Show banner in overlay
+    overlay.showPendingBanner(market, outcome);
   };
 
   // ── State ────────────────────────────────────────────────────────────────
@@ -87,7 +103,7 @@ async function init() {
       }
     } catch (err) {
       const msg = (err as Error).message ?? '';
-      // Service worker was killed by Chrome → retry once after a short delay
+      // Service worker was killed by Chrome → retry once after short delay
       if (
         attempt === 0 &&
         (msg.includes('Could not establish connection') ||
@@ -115,7 +131,7 @@ async function init() {
 
   function onKeywordsUpdated(keywords: string[], force = false) {
     const key = keywordsKey(keywords);
-    if (!force && key === lastKey) return; // no change
+    if (!force && key === lastKey) return;
     lastKey = key;
     scheduleSearch(keywords);
   }
@@ -123,7 +139,7 @@ async function init() {
   // ── Polling control ──────────────────────────────────────────────────────
 
   function startPolling() {
-    if (pollHandle) return; // already running
+    if (pollHandle) return;
     pollHandle = setInterval(() => {
       if (!document.hidden) onKeywordsUpdated(extractor());
     }, POLL_INTERVAL_MS);
@@ -140,8 +156,8 @@ async function init() {
     if (document.hidden) {
       stopPolling();
     } else {
-      const kws    = extractor();
-      const stale  = Date.now() - lastFetchTime > STALE_MS;
+      const kws   = extractor();
+      const stale = Date.now() - lastFetchTime > STALE_MS;
       const changed = keywordsKey(kws) !== lastKey;
       if (stale || changed) onKeywordsUpdated(kws, stale);
       startPolling();
@@ -155,7 +171,6 @@ async function init() {
     new MutationObserver(() => {
       if (window.location.href === lastUrl) return;
       lastUrl = window.location.href;
-      // Wait for the new page's title/metadata to load, then scan
       let attempts = 0;
       const poll = setInterval(() => {
         const kws = extractor();
@@ -173,7 +188,6 @@ async function init() {
     window.location.hostname.includes('twitter.com') ||
     window.location.hostname.includes('x.com')
   ) {
-    // Tweet feed changes
     const attachFeedObserver = () => {
       const main = document.querySelector('main') ?? document.body;
       new MutationObserver(() => onKeywordsUpdated(extractor()))
@@ -183,7 +197,6 @@ async function init() {
     if (document.querySelector('main')) {
       attachFeedObserver();
     } else {
-      // main might not be rendered yet on initial load
       const waitForMain = new MutationObserver(() => {
         if (document.querySelector('main')) {
           waitForMain.disconnect();
@@ -193,7 +206,6 @@ async function init() {
       waitForMain.observe(document.body, { childList: true, subtree: true });
     }
 
-    // Twitter SPA URL changes (clicking tweet → user → back)
     let lastUrl = window.location.href;
     new MutationObserver(() => {
       if (window.location.href !== lastUrl) {
@@ -204,6 +216,14 @@ async function init() {
   }
 
   // ── Bootstrap ────────────────────────────────────────────────────────────
+
+  // Clean up stale pending trades on page load
+  chrome.storage.local.get('pm_pending_trade', data => {
+    const pt = data.pm_pending_trade as { ts?: number } | undefined;
+    if (pt?.ts && Date.now() - pt.ts > PENDING_TTL_MS) {
+      chrome.storage.local.remove('pm_pending_trade');
+    }
+  });
 
   const initialKws = extractor();
   if (initialKws.length > 0) onKeywordsUpdated(initialKws);
