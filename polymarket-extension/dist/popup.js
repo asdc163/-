@@ -8496,6 +8496,7 @@ var PolymarketPopup = (() => {
       ] })
     ] });
   }
+  var PENDING_TTL = 5 * 60 * 1e3;
   function SearchView({
     session,
     balance,
@@ -8509,6 +8510,7 @@ var PolymarketPopup = (() => {
     const [recents, setRecents] = (0, import_react.useState)([]);
     const [showHints, setShowHints] = (0, import_react.useState)(false);
     const [activeOrder, setActiveOrder] = (0, import_react.useState)(null);
+    const [overlayPending, setOverlayPending] = (0, import_react.useState)(null);
     const searchRef = (0, import_react.useRef)(null);
     const initRef = (0, import_react.useRef)(false);
     (0, import_react.useEffect)(() => {
@@ -8528,6 +8530,7 @@ var PolymarketPopup = (() => {
       setSearchError(null);
       setSearched(true);
       setActiveOrder(null);
+      setOverlayPending(null);
       setShowHints(false);
       saveRecent(trimmed);
       try {
@@ -8546,13 +8549,25 @@ var PolymarketPopup = (() => {
     (0, import_react.useEffect)(() => {
       if (initRef.current) return;
       initRef.current = true;
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        const tab = tabs[0];
-        if (!tab?.title || tab.url?.includes("polymarket.com")) return;
-        const kw = keywordsFromTitle(tab.title);
-        if (!kw) return;
-        setQuery(kw);
-        doSearch(kw);
+      chrome.storage.local.get(["pm_pending_trade", "pm_recents"], (data) => {
+        setRecents(data.pm_recents ?? []);
+        const pt = data.pm_pending_trade;
+        if (pt && Date.now() - pt.ts < PENDING_TTL) {
+          chrome.storage.local.remove("pm_pending_trade");
+          setMarkets([pt.market]);
+          setSearched(true);
+          setOverlayPending({ market: pt.market, outcome: pt.outcome });
+          setActiveOrder({ marketId: pt.market.id, outcome: pt.outcome });
+          return;
+        }
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          const tab = tabs[0];
+          if (!tab?.title || tab.url?.includes("polymarket.com")) return;
+          const kw = keywordsFromTitle(tab.title);
+          if (!kw) return;
+          setQuery(kw);
+          doSearch(kw);
+        });
       });
     }, [doSearch]);
     const handleKey = (e) => {
@@ -8563,6 +8578,37 @@ var PolymarketPopup = (() => {
       }
     };
     return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+      overlayPending && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
+        padding: "10px 16px",
+        background: C.brandDim,
+        borderBottom: `1px solid ${C.brand}44`,
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        animation: "slideDown .2s ease"
+      }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 18 }, children: "\u26A1" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, fontWeight: 800, color: C.brand }, children: "Trade staged from page overlay" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 11, color: C.textMid, marginTop: 2 }, children: [
+            overlayPending.outcome,
+            " \xB7 ",
+            overlayPending.market.question.slice(0, 60),
+            overlayPending.market.question.length > 60 ? "\u2026" : ""
+          ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => {
+          setOverlayPending(null);
+          setActiveOrder(null);
+        }, style: {
+          background: "none",
+          border: "none",
+          color: C.muted,
+          cursor: "pointer",
+          fontSize: 16,
+          padding: "2px 4px"
+        }, children: "\xD7" })
+      ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "12px 16px", background: C.panel, borderBottom: `1px solid ${C.border}` }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { position: "relative" }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {

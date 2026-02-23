@@ -243,6 +243,7 @@ var PolymarketRadar = (() => {
 
   // src/content/overlay.ts
   var OVERLAY_ID = "__polymarket_radar_root__";
+  var DISMISS_TIMEOUT = 3 * 60 * 1e3;
   var BG = "#0C0F1A";
   var PANEL = "#111520";
   var BORDER = "#232A3B";
@@ -252,6 +253,7 @@ var PolymarketRadar = (() => {
   var YES = "#0AC18E";
   var NO = "#E23E3E";
   var BRAND = "#6170FF";
+  var AMBER = "#F59E0B";
   var STYLES = `
   :host {
     all: initial;
@@ -285,9 +287,27 @@ var PolymarketRadar = (() => {
     outline: none;
     transition: opacity .15s;
     box-shadow: -2px 0 16px rgba(0,0,0,.5);
+    position: relative;
   }
   .tab:hover { opacity: .9; }
   .tab-icon { writing-mode: horizontal-tb; font-size: 15px; }
+
+  /* Notification dot on tab */
+  .tab-badge {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: ${AMBER};
+    display: none;
+    box-shadow: 0 0 6px ${AMBER};
+    animation: pulseAmber 1.2s ease-in-out infinite;
+  }
+  .tab-badge.visible { display: block; }
+  @keyframes pulseAmber { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.6;transform:scale(1.3)} }
+
   .container { display: flex; flex-direction: row; align-items: stretch; }
 
   /* \u2500\u2500 Side panel \u2500\u2500 */
@@ -335,6 +355,46 @@ var PolymarketRadar = (() => {
     transition: color .15s, background .15s; flex-shrink: 0;
   }
   .close-btn:hover { color: ${TEXT}; background: ${BORDER}; }
+
+  /* \u2500\u2500 Pending trade banner \u2500\u2500 */
+  .pending-banner {
+    display: none;
+    padding: 10px 14px;
+    background: ${AMBER}18;
+    border-bottom: 1px solid ${AMBER}44;
+    animation: slideIn .18s ease;
+  }
+  .pending-banner.visible { display: block; }
+  .pending-banner-title {
+    font-size: 12px; font-weight: 800; color: ${AMBER}; margin-bottom: 4px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .pending-banner-sub {
+    font-size: 11px; color: ${TEXT2}; margin-bottom: 8px; line-height: 1.4;
+  }
+  .pending-banner-row { display: flex; gap: 6px; }
+  .pending-btn-primary {
+    flex: 2; font-size: 11px; font-weight: 800;
+    background: ${BRAND}; color: #fff;
+    border: none; border-radius: 7px;
+    padding: 7px 0; cursor: pointer;
+    transition: opacity .15s;
+  }
+  .pending-btn-primary:hover { opacity: .85; }
+  .pending-btn-secondary {
+    flex: 1; font-size: 11px; font-weight: 700;
+    background: transparent; color: ${BRAND};
+    border: 1px solid ${BRAND}44; border-radius: 7px;
+    padding: 7px 0; cursor: pointer; text-decoration: none;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s;
+  }
+  .pending-btn-secondary:hover { background: ${BRAND}22; }
+  .pending-dismiss {
+    background: none; border: none; color: ${MUTED}; cursor: pointer;
+    font-size: 11px; padding: 2px 4px; margin-top: 4px; display: block;
+    width: 100%; text-align: center;
+  }
 
   /* \u2500\u2500 Scrollable body \u2500\u2500 */
   .panel-body { padding: 6px 0; flex: 1; overflow-y: auto; }
@@ -409,7 +469,7 @@ var PolymarketRadar = (() => {
     background: ${YES}22; color: ${YES};
     border: 1px solid ${YES}44; border-radius: 7px;
     padding: 6px 0; cursor: pointer; text-align: center;
-    text-decoration: none; display: block; transition: background .15s;
+    display: block; transition: background .15s;
   }
   .btn-yes:hover { background: ${YES}40; }
   .btn-no {
@@ -417,7 +477,7 @@ var PolymarketRadar = (() => {
     background: ${NO}22; color: ${NO};
     border: 1px solid ${NO}44; border-radius: 7px;
     padding: 6px 0; cursor: pointer; text-align: center;
-    text-decoration: none; display: block; transition: background .15s;
+    display: block; transition: background .15s;
   }
   .btn-no:hover { background: ${NO}40; }
   .btn-view {
@@ -478,10 +538,8 @@ var PolymarketRadar = (() => {
       oddsHtml = `<div class="chips">${chips}</div>`;
     }
     const actionsHtml = binary ? `<div class="btn-row">
-        <a class="btn-yes" href="${esc(m.url)}" target="_blank" rel="noopener"
-           data-idx="${idx}" data-outcome="Yes">YES ${yPct}%</a>
-        <a class="btn-no"  href="${esc(m.url)}" target="_blank" rel="noopener"
-           data-idx="${idx}" data-outcome="No">NO ${nPct}%</a>
+        <button class="btn-yes" data-idx="${idx}" data-outcome="Yes">YES ${yPct}% \u2014 Trade \u26A1</button>
+        <button class="btn-no"  data-idx="${idx}" data-outcome="No">NO ${nPct}% \u2014 Trade \u26A1</button>
        </div>` : `<div class="btn-row">
         <a class="btn-view" href="${esc(m.url)}" target="_blank" rel="noopener">
           Trade on Polymarket \u2197
@@ -503,10 +561,17 @@ var PolymarketRadar = (() => {
     constructor() {
       this.isOpen = false;
       this.markets = [];
-      /** Called when user clicks a YES/NO button. Default: opens market URL. */
+      // Dismiss memory: track keyword key + time of last dismiss
+      this.dismissedKey = "";
+      this.dismissedAt = 0;
+      // Current pending trade info (for banner)
+      this.pendingMarket = null;
+      this.pendingOutcome = "Yes";
+      /** Called when user clicks YES/NO. Override in content/index.ts. */
       this.onBet = async (market) => {
         window.open(market.url, "_blank");
       };
+      this._currentKey = "";
       this.host = document.createElement("div");
       this.host.id = OVERLAY_ID;
       this.shadow = this.host.attachShadow({ mode: "closed" });
@@ -525,8 +590,27 @@ var PolymarketRadar = (() => {
                 <div class="panel-sub" id="sub">Detecting topics\u2026</div>
               </div>
             </div>
-            <button class="close-btn" id="close-btn" title="Close">\u2715</button>
+            <button class="close-btn" id="close-btn" title="Close (won't reopen for this topic)">\u2715</button>
           </div>
+
+          <!-- Pending trade banner (hidden until user clicks YES/NO) -->
+          <div class="pending-banner" id="pending-banner">
+            <div class="pending-banner-title">\u26A1 Ready to trade!</div>
+            <div class="pending-banner-sub" id="pending-sub">
+              Click the \u{1F3AF} toolbar icon to confirm your trade in the popup.
+            </div>
+            <div class="pending-banner-row">
+              <button class="pending-btn-primary" id="pending-open-popup">
+                \u{1F3AF} Open Popup to Trade
+              </button>
+              <a class="pending-btn-secondary" id="pending-polymarket-link"
+                 href="https://polymarket.com" target="_blank" rel="noopener">
+                Polymarket \u2197
+              </a>
+            </div>
+            <button class="pending-dismiss" id="pending-dismiss">dismiss</button>
+          </div>
+
           <div class="panel-body" id="panel-body">
             <div class="state-wrap">
               <div class="spinner"></div>
@@ -534,19 +618,27 @@ var PolymarketRadar = (() => {
             </div>
           </div>
           <div class="panel-footer">
-            Quick-order via the extension popup \xB7
+            Click YES/NO to stage a trade \xB7 confirm via the \u{1F3AF} popup \xB7
             <a class="footer-link" href="https://polymarket.com" target="_blank">polymarket.com</a>
           </div>
         </div>
         <button class="tab" id="tab-btn" title="Polymarket Radar \u2014 relevant prediction markets">
+          <span class="tab-badge" id="tab-badge"></span>
           <span class="tab-icon">\u{1F3AF}</span>MARKETS
         </button>
       </div>`;
       this.panelEl = this.shadow.getElementById("panel");
       this.bodyEl = this.shadow.getElementById("panel-body");
       this.subEl = this.shadow.getElementById("sub");
+      this.bannerEl = this.shadow.getElementById("pending-banner");
+      this.tabBadge = this.shadow.getElementById("tab-badge");
       this.shadow.getElementById("tab-btn").addEventListener("click", () => this.togglePanel());
-      this.shadow.getElementById("close-btn").addEventListener("click", () => this.closePanel());
+      this.shadow.getElementById("close-btn").addEventListener("click", () => this.dismiss());
+      this.shadow.getElementById("pending-open-popup").addEventListener("click", () => {
+      });
+      this.shadow.getElementById("pending-dismiss").addEventListener("click", () => {
+        this.hidePendingBanner();
+      });
       this.bodyEl.addEventListener("click", (e) => {
         const el = e.target.closest("[data-outcome]");
         if (!el) return;
@@ -565,7 +657,6 @@ var PolymarketRadar = (() => {
     unmount() {
       this.host.remove();
     }
-    /** No-op — kept for backward compat with content/index.ts */
     setWalletConnected(_) {
     }
     togglePanel() {
@@ -579,16 +670,29 @@ var PolymarketRadar = (() => {
       this.panelEl.classList.add("hidden");
       this.isOpen = false;
     }
+    /** User explicitly dismissed — remember the current keyword set. */
+    dismiss() {
+      this.closePanel();
+      this.dismissedKey = this._currentKey;
+      this.dismissedAt = Date.now();
+    }
+    /** Whether auto-open is suppressed for the current keyword set. */
+    isDismissed() {
+      if (this.dismissedKey !== this._currentKey) return false;
+      return Date.now() - this.dismissedAt < DISMISS_TIMEOUT;
+    }
     setLoading(keywords = []) {
+      this._currentKey = keywords.join("\0");
       if (keywords.length) this.subEl.textContent = `Searching: ${keywords.slice(0, 4).join(", ")}`;
       this.bodyEl.innerHTML = `
       <div class="state-wrap">
         <div class="spinner"></div>
         <span>Searching markets\u2026</span>
       </div>`;
-      if (!this.isOpen) this.openPanel();
+      if (!this.isOpen && !this.isDismissed()) this.openPanel();
     }
     setMarkets(markets, keywords) {
+      this._currentKey = keywords.join("\0");
       this.markets = markets;
       this.subEl.textContent = keywords.length ? `Topics: ${keywords.slice(0, 4).join(", ")}` : "No topics detected";
       if (markets.length === 0) {
@@ -600,7 +704,7 @@ var PolymarketRadar = (() => {
         return;
       }
       this.bodyEl.innerHTML = markets.map((m, i) => renderCard(m, i)).join("");
-      if (!this.isOpen) this.openPanel();
+      if (!this.isOpen && !this.isDismissed()) this.openPanel();
     }
     setError(msg) {
       this.bodyEl.innerHTML = `
@@ -609,12 +713,36 @@ var PolymarketRadar = (() => {
         <span>${esc(msg)}</span>
       </div>`;
     }
+    /**
+     * Show the pending trade banner.
+     * Called by content/index.ts after storing trade in chrome.storage.local.
+     */
+    showPendingBanner(market, outcome) {
+      this.pendingMarket = market;
+      this.pendingOutcome = outcome;
+      const pct = Math.round(
+        (outcome === "Yes" ? market.outcomePrices[0] : market.outcomePrices[1]) * 100
+      );
+      const subEl = this.shadow.getElementById("pending-sub");
+      subEl.textContent = `${outcome} @ ${pct}% staged \u2014 click the \u{1F3AF} icon in your toolbar to confirm.`;
+      const linkEl = this.shadow.getElementById("pending-polymarket-link");
+      linkEl.href = market.url;
+      this.bannerEl.classList.add("visible");
+      this.tabBadge.classList.add("visible");
+      if (!this.isOpen) this.openPanel();
+    }
+    hidePendingBanner() {
+      this.bannerEl.classList.remove("visible");
+      this.tabBadge.classList.remove("visible");
+      this.pendingMarket = null;
+    }
   };
 
   // src/content/index.ts
-  var POLL_INTERVAL_MS = 12e3;
+  var POLL_INTERVAL_MS = 15e3;
   var DEBOUNCE_MS = 2e3;
   var STALE_MS = 45e3;
+  var PENDING_TTL_MS = 5 * 60 * 1e3;
   function getExtractor() {
     const h = window.location.hostname;
     if (h.includes("twitter.com") || h.includes("x.com")) return extractFromTwitter;
@@ -630,8 +758,15 @@ var PolymarketRadar = (() => {
     const extractor = extractorOrNull;
     const overlay = new PolymarketOverlay();
     overlay.mount();
-    overlay.onBet = async (market) => {
-      window.open(market.url, "_blank");
+    overlay.onBet = async (market, outcome) => {
+      chrome.storage.local.set({
+        pm_pending_trade: {
+          market,
+          outcome,
+          ts: Date.now()
+        }
+      });
+      overlay.showPendingBanner(market, outcome);
     };
     let lastKey = "";
     let lastFetchTime = 0;
@@ -750,6 +885,12 @@ var PolymarketRadar = (() => {
         }
       }).observe(document.body, { childList: true, subtree: true });
     }
+    chrome.storage.local.get("pm_pending_trade", (data) => {
+      const pt = data.pm_pending_trade;
+      if (pt?.ts && Date.now() - pt.ts > PENDING_TTL_MS) {
+        chrome.storage.local.remove("pm_pending_trade");
+      }
+    });
     const initialKws = extractor();
     if (initialKws.length > 0) onKeywordsUpdated(initialKws);
     if (!document.hidden) startPolling();

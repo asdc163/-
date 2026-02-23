@@ -199,8 +199,30 @@ var PolymarketBg = (() => {
   var CTF_EXCHANGE = "0x4bFb41d5B3570DeFd03C39a9A4D8dE6Bd8B8982e";
   var NEG_RISK_CTF_EX = "0xC5d563A36AE78145C45a50134d48A1a293c969E1";
   var POLYGON_CHAIN_ID = 137;
-  var CACHE_TTL = 6e4;
-  var cache = /* @__PURE__ */ new Map();
+  var CACHE_TTL = 9e4;
+  var memCache = /* @__PURE__ */ new Map();
+  async function getCached(key) {
+    const mem = memCache.get(key);
+    if (mem && mem.expiresAt > Date.now()) return mem.result;
+    try {
+      const data = await chrome.storage.session.get(`pm_cache_${key}`);
+      const entry = data[`pm_cache_${key}`];
+      if (entry && entry.expiresAt > Date.now()) {
+        memCache.set(key, entry);
+        return entry.result;
+      }
+    } catch {
+    }
+    return null;
+  }
+  async function setCached(key, result) {
+    const entry = { result, expiresAt: Date.now() + CACHE_TTL };
+    memCache.set(key, entry);
+    try {
+      await chrome.storage.session.set({ [`pm_cache_${key}`]: entry });
+    } catch {
+    }
+  }
   async function findPolymarketTab() {
     const tabs = await chrome.tabs.query({ url: "https://polymarket.com/*" });
     return tabs[0] ?? null;
@@ -244,15 +266,16 @@ var PolymarketBg = (() => {
         // ── Market search ─────────────────────────────────────────────────
         case "SEARCH_MARKETS": {
           const key = message.keywords.join(",");
-          const hit = cache.get(key);
-          if (hit && hit.expiresAt > Date.now()) {
-            sendResponse({ type: "SEARCH_RESULT", result: hit.result });
-            return true;
-          }
-          searchMarkets(message.keywords).then((markets) => {
-            const result = { markets, keywords: message.keywords, timestamp: Date.now() };
-            cache.set(key, { result, expiresAt: Date.now() + CACHE_TTL });
-            sendResponse({ type: "SEARCH_RESULT", result });
+          getCached(key).then((cached) => {
+            if (cached) {
+              sendResponse({ type: "SEARCH_RESULT", result: cached });
+              return;
+            }
+            return searchMarkets(message.keywords).then(async (markets) => {
+              const result = { markets, keywords: message.keywords, timestamp: Date.now() };
+              await setCached(key, result);
+              sendResponse({ type: "SEARCH_RESULT", result });
+            });
           }).catch(
             (err) => sendResponse({ type: "SEARCH_ERROR", error: String(err?.message ?? err) })
           );
@@ -350,7 +373,7 @@ var PolymarketBg = (() => {
   );
   setInterval(() => {
     const now = Date.now();
-    for (const [k, v] of cache) if (v.expiresAt <= now) cache.delete(k);
+    for (const [k, v] of memCache) if (v.expiresAt <= now) memCache.delete(k);
   }, 12e4);
   return __toCommonJS(service_worker_exports);
 })();
