@@ -1,39 +1,57 @@
 /**
- * polymarket-bridge.ts
- * Injected into https://polymarket.com/* pages (ISOLATED world).
+ * polymarket-bridge.ts — runs on https://polymarket.com/* (ISOLATED world)
  *
  * Responsibilities:
- *  1. Scan localStorage for CLOB L2 credentials (apiKey/secret/passphrase/address)
- *     — these are stored by Polymarket after any login method (MetaMask, social, etc.)
- *  2. Detect whether window.ethereum is available (via MAIN world injection)
- *  3. Sign EIP-712 orders using the page's wallet (MAIN world injection → postMessage)
+ *  1. Scan localStorage AND sessionStorage for CLOB L2 credentials.
+ *     Polymarket stores these after any login (MetaMask, Coinbase, Privy social, etc.)
+ *     under various key names — we scan all of them.
+ *  2. Detect window.ethereum via a MAIN-world injection (isolated world can't see it).
+ *  3. Sign EIP-712 orders using the page's connected wallet (MAIN world injection).
  *
- * Communication:
- *  Background → (chrome.tabs.sendMessage) → this script → (sendResponse) → Background
- *  For signing: this script injects a <script> tag into MAIN world, receives result via postMessage.
+ * Communication pattern:
+ *   Background ──(chrome.tabs.sendMessage)──► this script ──(sendResponse)──► Background
+ *   For signing: inject <script> into MAIN world → postMessage back to this script.
  */
 
 import type { PolySession, UnsignedOrder } from '../shared/types';
 
-// ─── localStorage scanner ─────────────────────────────────────────────────
+// ─── Credential extraction ────────────────────────────────────────────────────
 
-function extractCredsFromObj(obj: unknown): Omit<PolySession, 'hasEthProvider'> | null {
+interface RawCreds {
+  address: string;
+  apiKey: string;
+  secret: string;
+  passphrase: string;
+}
+
+/**
+ * Walk an object (one level deep) looking for the CLOB credential fields.
+ * Polymarket uses various field name conventions across SDK versions.
+ */
+function extractCreds(obj: unknown): RawCreds | null {
   if (!obj || typeof obj !== 'object') return null;
   const o = obj as Record<string, unknown>;
 
-  const apiKey = (o.apiKey ?? o.api_key ?? o.POLY_API_KEY) as string | undefined;
-  const secret = (o.secret ?? o.POLY_SIGNATURE) as string | undefined;
-  const passphrase = (o.passphrase ?? o.POLY_PASSPHRASE) as string | undefined;
-  const address = (o.address ?? o.maker ?? o.POLY_ADDRESS) as string | undefined;
+  // Normalise field aliases
+  const apiKey     = (o.apiKey     ?? o.api_key     ?? o.POLY_API_KEY     ?? o.key)      as string | undefined;
+  const secret     = (o.secret     ?? o.POLY_SIGNATURE ?? o.secretKey     ?? o.sigKey)   as string | undefined;
+  const passphrase = (o.passphrase ?? o.POLY_PASSPHRASE ?? o.pass         ?? o.phrase)   as string | undefined;
+  const address    = (o.address    ?? o.POLY_ADDRESS  ?? o.maker          ?? o.userAddr) as string | undefined;
 
   if (apiKey && secret && passphrase && address) {
-    return { address: address.toLowerCase(), apiKey, secret, passphrase };
+    return {
+      address:    address.toLowerCase(),
+      apiKey, secret, passphrase,
+    };
   }
 
-  // Try one level of nesting (e.g. { credentials: { apiKey, ... } })
-  for (const field of ['credentials', 'creds', 'auth', 'clob', 'wallet', 'user', 'data', 'api']) {
+  // One level of nesting (e.g. { credentials: { apiKey, ... } })
+  for (const field of [
+    'credentials', 'creds', 'auth', 'clob', 'clobCreds', 'wallet', 'user',
+    'account', 'session', 'data', 'api', 'keys',
+  ]) {
     if (o[field]) {
-      const nested = extractCredsFromObj(o[field]);
+      const nested = extractCreds(o[field]);
       if (nested) return nested;
     }
   }
@@ -41,141 +59,141 @@ function extractCredsFromObj(obj: unknown): Omit<PolySession, 'hasEthProvider'> 
   return null;
 }
 
-function scanLocalStorage(): Omit<PolySession, 'hasEthProvider'> | null {
+/**
+ * Scan a Storage object (localStorage or sessionStorage) for CLOB credentials.
+ * Checks all entries whose value looks like a JSON object containing 'secret' or 'passphrase'.
+ */
+function scanStorage(storage: Storage): RawCreds | null {
   try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
       if (!key) continue;
       try {
-        const raw = localStorage.getItem(key);
+        const raw = storage.getItem(key);
         if (!raw || raw[0] !== '{') continue;
-        // Quick string pre-check to avoid unnecessary JSON.parse
-        if (!raw.includes('secret') && !raw.includes('passphrase')) continue;
-        const obj = JSON.parse(raw) as unknown;
-        const creds = extractCredsFromObj(obj);
+        // Quick pre-filter before JSON.parse
+        if (!raw.includes('secret') && !raw.includes('passphrase') && !raw.includes('POLY_')) continue;
+        const parsed = JSON.parse(raw) as unknown;
+        const creds = extractCreds(parsed);
         if (creds) return creds;
-      } catch { /* skip malformed entries */ }
+      } catch { /* skip malformed */ }
     }
-  } catch { /* localStorage access denied */ }
+  } catch { /* storage access denied */ }
   return null;
 }
 
-// ─── MAIN world injection ─────────────────────────────────────────────────
-// Content scripts run in ISOLATED world and cannot access window.ethereum
-// directly. We inject a <script> element that runs in MAIN world and
-// communicates back via window.postMessage.
+function findCreds(): RawCreds | null {
+  // localStorage first (Polymarket's web app uses it for persistence)
+  return scanStorage(localStorage) ?? scanStorage(sessionStorage);
+}
 
-function runInMainWorld<T>(code: string, nonce: string, timeoutMs = 5_000): Promise<T> {
+// ─── MAIN-world injection helper ─────────────────────────────────────────────
+// Content scripts run in ISOLATED world and cannot read window.ethereum.
+// We inject a <script> into the real page context and communicate via postMessage.
+
+function runInMainWorld<T>(code: string, nonce: string, timeoutMs: number): Promise<T> {
   return new Promise((resolve, reject) => {
-    const handler = (event: MessageEvent) => {
-      if (!event.data || event.data.__pmNonce !== nonce) return;
+    const handler = (ev: MessageEvent) => {
+      if (!ev.data || ev.data.__pmNonce !== nonce) return;
       window.removeEventListener('message', handler);
       clearTimeout(timer);
-      if (event.data.error) reject(new Error(event.data.error as string));
-      else resolve(event.data.result as T);
+      if (ev.data.error) reject(new Error(ev.data.error as string));
+      else resolve(ev.data.result as T);
     };
-
     const timer = setTimeout(() => {
       window.removeEventListener('message', handler);
       reject(new Error('MAIN world call timed out'));
     }, timeoutMs);
-
     window.addEventListener('message', handler);
 
     const script = document.createElement('script');
-    // Wrap in IIFE so the nonce variable is scoped
-    script.textContent = `(function(){const __n=${JSON.stringify(nonce)};${code}})();`;
+    // Wrap in IIFE; the nonce is captured as a local variable
+    script.textContent = `(function(){var __n=${JSON.stringify(nonce)};${code}})();`;
     document.documentElement.appendChild(script);
     script.remove();
   });
 }
 
-async function checkEthProvider(): Promise<boolean> {
+async function hasEthProvider(): Promise<boolean> {
   const nonce = `_pmchk_${Date.now()}`;
   try {
     return await runInMainWorld<boolean>(
       `window.postMessage({__pmNonce:__n,result:typeof window.ethereum!=='undefined'},'*');`,
-      nonce,
-      2_000
+      nonce, 2_500
     );
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 }
 
-async function signOrderInPage(
-  address: string,
-  order: UnsignedOrder,
-  domain: object
-): Promise<string> {
+async function signOrderInPage(address: string, order: UnsignedOrder, domain: object): Promise<string> {
   const nonce = `_pmsign_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
   const typedData = {
     domain,
     types: {
       Order: [
-        { name: 'salt',           type: 'uint256' },
-        { name: 'maker',          type: 'address' },
-        { name: 'signer',         type: 'address' },
-        { name: 'taker',          type: 'address' },
-        { name: 'tokenId',        type: 'uint256' },
-        { name: 'makerAmount',    type: 'uint256' },
-        { name: 'takerAmount',    type: 'uint256' },
-        { name: 'expiration',     type: 'uint256' },
-        { name: 'nonce',          type: 'uint256' },
-        { name: 'feeRateBps',     type: 'uint256' },
-        { name: 'side',           type: 'uint8'   },
-        { name: 'signatureType',  type: 'uint8'   },
+        { name: 'salt',          type: 'uint256' },
+        { name: 'maker',         type: 'address' },
+        { name: 'signer',        type: 'address' },
+        { name: 'taker',         type: 'address' },
+        { name: 'tokenId',       type: 'uint256' },
+        { name: 'makerAmount',   type: 'uint256' },
+        { name: 'takerAmount',   type: 'uint256' },
+        { name: 'expiration',    type: 'uint256' },
+        { name: 'nonce',         type: 'uint256' },
+        { name: 'feeRateBps',    type: 'uint256' },
+        { name: 'side',          type: 'uint8'   },
+        { name: 'signatureType', type: 'uint8'   },
       ],
     },
     primaryType: 'Order',
     message: order,
   };
 
-  // Embed typed data as a JSON literal in the injected script
-  const tdJson = JSON.stringify(JSON.stringify(typedData)); // double-stringify: outer for JS string literal
+  // Double-serialise: JSON.stringify produces a JS string literal that is safe
+  // to embed in a script tag (no </script> injection risk from our own data).
+  const tdJson   = JSON.stringify(JSON.stringify(typedData));
   const addrJson = JSON.stringify(address);
 
-  const code = `
-    (async function(){
-      try{
-        if(!window.ethereum){
-          window.postMessage({__pmNonce:__n,error:'NO_WALLET'},'*');
-          return;
-        }
-        const sig=await window.ethereum.request({
-          method:'eth_signTypedData_v4',
-          params:[${addrJson},${tdJson}]
-        });
-        window.postMessage({__pmNonce:__n,result:sig},'*');
-      }catch(e){
-        window.postMessage({__pmNonce:__n,error:e.message||String(e)},'*');
+  const code = `(async function(){
+    try{
+      if(!window.ethereum){
+        window.postMessage({__pmNonce:__n,error:'NO_WALLET'},'*');return;
       }
-    })();
-  `;
+      var sig=await window.ethereum.request({
+        method:'eth_signTypedData_v4',
+        params:[${addrJson},${tdJson}]
+      });
+      window.postMessage({__pmNonce:__n,result:sig},'*');
+    }catch(e){
+      window.postMessage({__pmNonce:__n,error:e&&e.message||String(e)},'*');
+    }
+  })();`;
 
-  return runInMainWorld<string>(code, nonce, 120_000); // 2 min for user to approve
+  // 2 min timeout — enough for user to approve in the wallet UI
+  return runInMainWorld<string>(code, nonce, 120_000);
 }
 
-// ─── Message listener ─────────────────────────────────────────────────────
+// ─── Message listener ─────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener(
-  (msg: { type: string; address?: string; order?: UnsignedOrder; domain?: object },
-   _sender,
-   sendResponse
+  (
+    msg: { type: string; address?: string; order?: UnsignedOrder; domain?: object },
+    _sender,
+    sendResponse
   ) => {
-
     if (msg.type === 'PM_GET_SESSION') {
-      const creds = scanLocalStorage();
-      if (!creds) {
+      const raw = findCreds();
+      if (!raw) {
         sendResponse({ session: null });
         return true;
       }
-      // Async: check for window.ethereum provider
-      checkEthProvider().then(hasEthProvider => {
-        sendResponse({ session: { ...creds, hasEthProvider } });
+      // Async: probe for window.ethereum
+      hasEthProvider().then(hasEth => {
+        sendResponse({
+          session: { ...raw, hasEthProvider: hasEth } satisfies PolySession,
+        });
       });
-      return true; // keep message channel open for async response
+      return true; // keep channel open for async response
     }
 
     if (msg.type === 'PM_SIGN_ORDER') {

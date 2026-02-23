@@ -28,16 +28,15 @@ var PolymarketBg = (() => {
     }
   }
   function parseOutcomePrices(raw) {
-    const parsed = parseJsonArray(raw, ["0.5", "0.5"]);
-    return parsed.map((p) => parseFloat(p));
+    return parseJsonArray(raw, ["0.5", "0.5"]).map((p) => parseFloat(p));
   }
-  function computeRelevanceScore(text, keywords) {
-    const lowerText = text.toLowerCase();
-    let score = 0;
-    for (const kw of keywords) {
-      if (lowerText.includes(kw.toLowerCase())) score += kw.length;
-    }
-    return score;
+  function relevanceScore(text, keywords) {
+    const t = text.toLowerCase();
+    return keywords.reduce((sum, kw) => {
+      const re = new RegExp(kw.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g");
+      const count = (t.match(re) ?? []).length;
+      return sum + kw.length * count;
+    }, 0);
   }
   function marketFromRaw(raw, eventSlug, eventTitle, keywords) {
     const outcomes = parseJsonArray(raw.outcomes, ["Yes", "No"]);
@@ -61,7 +60,7 @@ var PolymarketBg = (() => {
       eventSlug,
       eventTitle,
       url,
-      relevanceScore: computeRelevanceScore(raw.question, keywords)
+      relevanceScore: relevanceScore(raw.question, keywords)
     };
   }
   function eventAsMarket(event, keywords) {
@@ -82,69 +81,62 @@ var PolymarketBg = (() => {
       eventSlug: event.slug,
       eventTitle: event.title,
       url: `${POLYMARKET_BASE}/event/${event.slug}`,
-      relevanceScore: computeRelevanceScore(event.title, keywords)
+      relevanceScore: relevanceScore(event.title, keywords)
     };
   }
-  async function searchMarkets(keywords, limit = 5) {
+  function pickBestMarket(event, keywords) {
+    const active = (event.markets ?? []).filter((m) => m.active && !m.closed);
+    if (active.length === 0) return eventAsMarket(event, keywords);
+    const scored = active.map((m) => ({
+      m,
+      score: relevanceScore(m.question, keywords) * 2 + parseFloat(m.liquidity || "0")
+    }));
+    scored.sort((a, b) => b.score - a.score);
+    return marketFromRaw(scored[0].m, event.slug, event.title, keywords);
+  }
+  async function searchMarkets(keywords, limit = 8) {
     if (keywords.length === 0) return [];
     const query = keywords.join(" ");
+    const seen = /* @__PURE__ */ new Set();
     const markets = [];
+    const addEvent = (event) => {
+      if (!event.active || event.closed) return;
+      if (seen.has(event.slug)) return;
+      seen.add(event.slug);
+      markets.push(pickBestMarket(event, keywords));
+    };
     try {
-      const searchUrl = `${GAMMA_BASE}/public-search?q=${encodeURIComponent(query)}&keep_closed_markets=0&limit_per_type=20&search_tags=false&search_profiles=false`;
-      const res = await fetch(searchUrl);
+      const url = `${GAMMA_BASE}/public-search?q=${encodeURIComponent(query)}&keep_closed_markets=0&limit_per_type=25&search_tags=false&search_profiles=false`;
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        const events = data.events || [];
-        for (const event of events) {
-          if (!event.active || event.closed) continue;
-          const eventMarkets = event.markets || [];
-          const activeMarkets = eventMarkets.filter((m) => m.active && !m.closed);
-          if (activeMarkets.length > 0) {
-            const best = activeMarkets.sort(
-              (a, b) => parseFloat(b.liquidity || "0") - parseFloat(a.liquidity || "0")
-            )[0];
-            markets.push(marketFromRaw(best, event.slug, event.title, keywords));
-          } else {
-            markets.push(eventAsMarket(event, keywords));
-          }
-        }
+        (data.events ?? []).forEach(addEvent);
       }
     } catch (e) {
-      console.warn("[PolymarketRadar] Search endpoint error:", e);
+      console.warn("[PolymarketRadar] /public-search error:", e);
     }
     if (markets.length < limit) {
       try {
-        const eventsUrl = `${GAMMA_BASE}/events?active=true&closed=false&limit=50&order=volume_24hr&ascending=false`;
-        const res = await fetch(eventsUrl);
+        const url = `${GAMMA_BASE}/events?active=true&closed=false&limit=80&order=volume_24hr&ascending=false`;
+        const res = await fetch(url);
         if (res.ok) {
           const events = await res.json();
-          for (const event of events) {
+          for (const ev of events) {
             if (markets.length >= limit * 2) break;
-            if (!event.active || event.closed) continue;
-            const relevance = computeRelevanceScore(event.title, keywords);
-            if (relevance === 0) continue;
-            if (markets.some((m) => m.eventSlug === event.slug)) continue;
-            const eventMarkets = event.markets || [];
-            const activeMarkets = eventMarkets.filter((m) => m.active && !m.closed);
-            if (activeMarkets.length > 0) {
-              const best = activeMarkets.sort(
-                (a, b) => parseFloat(b.liquidity || "0") - parseFloat(a.liquidity || "0")
-              )[0];
-              markets.push(marketFromRaw(best, event.slug, event.title, keywords));
-            } else {
-              markets.push(eventAsMarket(event, keywords));
-            }
+            if (relevanceScore(ev.title, keywords) === 0) continue;
+            addEvent(ev);
           }
         }
       } catch (e) {
-        console.warn("[PolymarketRadar] Events fallback error:", e);
+        console.warn("[PolymarketRadar] /events fallback error:", e);
       }
     }
     markets.sort((a, b) => {
-      if (!a.endDate && !b.endDate) return 0;
-      if (!a.endDate) return 1;
-      if (!b.endDate) return -1;
-      return new Date(a.endDate).getTime() - new Date(b.endDate).getTime();
+      const relDiff = (b.relevanceScore ?? 0) - (a.relevanceScore ?? 0);
+      if (relDiff !== 0) return relDiff;
+      const volDiff = b.volume24hr - a.volume24hr;
+      if (Math.abs(volDiff) > 1e3) return volDiff > 0 ? 1 : -1;
+      return 0;
     });
     return markets.slice(0, limit);
   }

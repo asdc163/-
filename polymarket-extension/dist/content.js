@@ -612,84 +612,147 @@ var PolymarketRadar = (() => {
   };
 
   // src/content/index.ts
-  var POLL_INTERVAL_MS = 8e3;
-  var DEBOUNCE_MS = 1500;
+  var POLL_INTERVAL_MS = 12e3;
+  var DEBOUNCE_MS = 2e3;
+  var STALE_MS = 45e3;
   function getExtractor() {
-    const host = window.location.hostname;
-    if (host.includes("twitter.com") || host.includes("x.com")) return extractFromTwitter;
-    if (host.includes("youtube.com")) return extractFromYouTube;
+    const h = window.location.hostname;
+    if (h.includes("twitter.com") || h.includes("x.com")) return extractFromTwitter;
+    if (h.includes("youtube.com")) return extractFromYouTube;
     return null;
   }
-  function keywordsChanged(prev, next) {
-    if (prev.length !== next.length) return true;
-    return prev.some((k, i) => k !== next[i]);
+  function keywordsKey(kws) {
+    return kws.join("\0");
   }
   async function init() {
-    const extractor = getExtractor();
-    if (!extractor) return;
+    const extractorOrNull = getExtractor();
+    if (!extractorOrNull) return;
+    const extractor = extractorOrNull;
     const overlay = new PolymarketOverlay();
     overlay.mount();
-    overlay.onBet = async (market, _outcome) => {
+    overlay.onBet = async (market) => {
       window.open(market.url, "_blank");
     };
-    let lastKeywords = [];
+    let lastKey = "";
+    let lastFetchTime = 0;
     let debounceTimer = null;
+    let pollHandle = null;
     let isFetching = false;
-    async function fetchMarkets(keywords) {
+    async function fetchMarkets(keywords, attempt = 0) {
       if (isFetching) return;
       isFetching = true;
       overlay.setLoading(keywords);
       try {
-        const response = await new Promise((resolve, reject) => {
-          chrome.runtime.sendMessage(
+        const res = await new Promise(
+          (resolve, reject) => chrome.runtime.sendMessage(
             { type: "SEARCH_MARKETS", keywords },
-            (res) => {
-              if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-              } else {
-                resolve(res);
-              }
+            (r) => {
+              if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+              else resolve(r);
             }
-          );
-        });
-        if (response.type === "SEARCH_RESULT" && response.result) {
-          overlay.setMarkets(response.result.markets, response.result.keywords);
-        } else if (response.type === "SEARCH_ERROR") {
-          overlay.setError(response.error ?? "Search failed");
+          )
+        );
+        lastFetchTime = Date.now();
+        if (res.type === "SEARCH_RESULT" && res.result) {
+          overlay.setMarkets(res.result.markets, res.result.keywords);
+        } else if (res.type === "SEARCH_ERROR") {
+          overlay.setError(res.error ?? "Search failed");
         }
       } catch (err) {
-        console.error("[PolymarketRadar] Search error:", err);
-        overlay.setError("Failed to load markets.");
+        const msg = err.message ?? "";
+        if (attempt === 0 && (msg.includes("Could not establish connection") || msg.includes("Extension context invalidated") || msg.includes("receiving end does not exist"))) {
+          isFetching = false;
+          await new Promise((r) => setTimeout(r, 800));
+          return fetchMarkets(keywords, 1);
+        }
+        console.warn("[PolymarketRadar] Search error:", msg);
+        overlay.setError("Search failed \u2014 will retry automatically.");
       } finally {
         isFetching = false;
       }
     }
-    function onKeywordsUpdated(keywords) {
-      if (!keywordsChanged(lastKeywords, keywords)) return;
-      lastKeywords = keywords;
+    function scheduleSearch(keywords, immediate = false) {
       if (debounceTimer) clearTimeout(debounceTimer);
+      const delay = immediate ? 0 : DEBOUNCE_MS;
       debounceTimer = setTimeout(() => {
         if (keywords.length > 0) fetchMarkets(keywords);
-      }, DEBOUNCE_MS);
+      }, delay);
     }
-    const initialKws = extractor();
-    if (initialKws.length > 0) onKeywordsUpdated(initialKws);
-    setInterval(() => onKeywordsUpdated(extractor()), POLL_INTERVAL_MS);
+    function onKeywordsUpdated(keywords, force = false) {
+      const key = keywordsKey(keywords);
+      if (!force && key === lastKey) return;
+      lastKey = key;
+      scheduleSearch(keywords);
+    }
+    function startPolling() {
+      if (pollHandle) return;
+      pollHandle = setInterval(() => {
+        if (!document.hidden) onKeywordsUpdated(extractor());
+      }, POLL_INTERVAL_MS);
+    }
+    function stopPolling() {
+      if (pollHandle) {
+        clearInterval(pollHandle);
+        pollHandle = null;
+      }
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = null;
+      }
+    }
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        const kws = extractor();
+        const stale = Date.now() - lastFetchTime > STALE_MS;
+        const changed = keywordsKey(kws) !== lastKey;
+        if (stale || changed) onKeywordsUpdated(kws, stale);
+        startPolling();
+      }
+    });
     if (window.location.hostname.includes("youtube.com")) {
+      let lastUrl = window.location.href;
+      new MutationObserver(() => {
+        if (window.location.href === lastUrl) return;
+        lastUrl = window.location.href;
+        let attempts = 0;
+        const poll = setInterval(() => {
+          const kws = extractor();
+          if (kws.length > 0 || ++attempts >= 8) {
+            clearInterval(poll);
+            onKeywordsUpdated(kws, true);
+          }
+        }, 600);
+      }).observe(document.body, { childList: true, subtree: true });
+    }
+    if (window.location.hostname.includes("twitter.com") || window.location.hostname.includes("x.com")) {
+      const attachFeedObserver = () => {
+        const main = document.querySelector("main") ?? document.body;
+        new MutationObserver(() => onKeywordsUpdated(extractor())).observe(main, { childList: true, subtree: false });
+      };
+      if (document.querySelector("main")) {
+        attachFeedObserver();
+      } else {
+        const waitForMain = new MutationObserver(() => {
+          if (document.querySelector("main")) {
+            waitForMain.disconnect();
+            attachFeedObserver();
+          }
+        });
+        waitForMain.observe(document.body, { childList: true, subtree: true });
+      }
       let lastUrl = window.location.href;
       new MutationObserver(() => {
         if (window.location.href !== lastUrl) {
           lastUrl = window.location.href;
-          setTimeout(() => onKeywordsUpdated(extractor()), 2e3);
+          setTimeout(() => onKeywordsUpdated(extractor(), true), 1200);
         }
       }).observe(document.body, { childList: true, subtree: true });
     }
-    if (window.location.hostname.includes("twitter.com") || window.location.hostname.includes("x.com")) {
-      const main = document.querySelector("main");
-      if (main) {
-        new MutationObserver(() => onKeywordsUpdated(extractor())).observe(main, { childList: true, subtree: false });
-      }
-    }
+    const initialKws = extractor();
+    if (initialKws.length > 0) onKeywordsUpdated(initialKws);
+    if (!document.hidden) startPolling();
   }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
