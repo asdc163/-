@@ -1,23 +1,17 @@
 /**
  * Popup — Polymarket Radar
- * Dark theme inspired by polymarket.com design system.
- *
- * UX features:
- *  - Auto-search from active tab title on open
- *  - Recent searches (persisted in chrome.storage.local)
- *  - Keyboard: Enter to search, Esc to close order panel
- *  - Market order (FOK) / Limit order (GTC) toggle
- *  - Social-login fallback: opens market on polymarket.com
- *  - Live balance display, refresh button
+ * Tabs: Search (buy) | Portfolio (sell)
  */
 
 import React, {
   useState, useEffect, useCallback, useRef, KeyboardEvent
 } from 'react';
-import type { PolymarketMarket, PolySession, OrderParams } from '../shared/types';
-import { getPolyBalance } from '../shared/clob-client';
+import type {
+  PolymarketMarket, PolySession, OrderParams, Position, SellParams,
+} from '../shared/types';
+import { getPolyBalance, getPositions } from '../shared/clob-client';
 
-// ─── Design tokens (Polymarket dark theme) ───────────────────────────────────
+// ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
   bg:          '#0C0F1A',
   panel:       '#111520',
@@ -64,7 +58,6 @@ function shortAddr(a: string): string {
   return `${a.slice(0, 6)}…${a.slice(-4)}`;
 }
 
-/** Strip site name, punctuation; return 2-4 meaningful keywords. */
 function keywordsFromTitle(title: string): string {
   const STOP = new Set(['the','and','for','with','from','that','this','are','was','will',
     'video','watch','twitter','youtube','home','trending','explore','page','new','top']);
@@ -75,7 +68,12 @@ function keywordsFromTitle(title: string): string {
     .slice(0, 4).join(' ');
 }
 
-// ─── Styles helper ────────────────────────────────────────────────────────────
+function fmtPnl(pnl: number, pct: number): string {
+  const sign = pnl >= 0 ? '+' : '';
+  return `${sign}$${pnl.toFixed(2)} (${sign}${pct.toFixed(1)}%)`;
+}
+
+// ─── Styles helpers ───────────────────────────────────────────────────────────
 const chip = (active: boolean, color: string = C.brand): React.CSSProperties => ({
   padding: '5px 12px', fontSize: 11, fontWeight: 700, borderRadius: 20,
   border: `1px solid ${active ? color : C.border}`,
@@ -127,8 +125,8 @@ function OddsBar({ outcomes, prices }: { outcomes: string[]; prices: number[] })
   );
 }
 
-// ─── Order Panel ──────────────────────────────────────────────────────────────
-const PRESETS = [5, 10, 25, 50];
+// ─── Buy Order Panel ──────────────────────────────────────────────────────────
+const BUY_PRESETS = [5, 10, 25, 50];
 
 interface OrderPanelProps {
   market: PolymarketMarket;
@@ -146,13 +144,12 @@ function OrderPanel({ market, outcome, session, balance, onCancel, onSuccess, on
   const [useCustom, setUseCustom] = useState(false);
   const [orderType, setOrderType] = useState<'FOK' | 'GTC'>('FOK');
   const [busy,      setBusy]      = useState(false);
-  const customRef = useRef<HTMLInputElement>(null);
 
-  const idx     = outcome === 'Yes' ? 0 : 1;
-  const price   = market.outcomePrices[idx] ?? 0.5;
-  const amount  = useCustom ? (parseFloat(custom) || 0) : preset;
-  const slip    = orderType === 'FOK' ? 1.05 : 1.0;
-  const shares  = amount > 0 && price > 0 ? (amount / (price * slip)).toFixed(2) : '—';
+  const idx    = outcome === 'Yes' ? 0 : 1;
+  const price  = market.outcomePrices[idx] ?? 0.5;
+  const amount = useCustom ? (parseFloat(custom) || 0) : preset;
+  const slip   = orderType === 'FOK' ? 1.05 : 1.0;
+  const shares = amount > 0 && price > 0 ? (amount / (price * slip)).toFixed(2) : '—';
   const accent  = outcome === 'Yes' ? C.yes : C.no;
   const accentD = outcome === 'Yes' ? C.yesDim : C.noDim;
   const lowBal  = balance !== null && amount > 0 && amount > balance;
@@ -170,7 +167,6 @@ function OrderPanel({ market, outcome, session, balance, onCancel, onSuccess, on
       const params: OrderParams = { outcome, usdcAmount: amount, orderType };
       const res = await chrome.runtime.sendMessage({ type: 'PLACE_ORDER', session, params, market }) as
         { type: string; result?: { orderId: string }; error?: string };
-
       if (res.type === 'ORDER_SUCCESS') {
         onSuccess(`${orderType === 'FOK' ? 'Market' : 'Limit'} order placed ✓  ${outcome} ≈${shares} shares @ $${amount}`);
       } else if (res.error === 'NO_ETH_PROVIDER') {
@@ -192,7 +188,6 @@ function OrderPanel({ market, outcome, session, balance, onCancel, onSuccess, on
       background: accentD, padding: '12px 14px',
       animation: 'slideDown .15s ease',
     }}>
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <span style={{ fontSize: 13, fontWeight: 800, color: accent }}>
           Buy {outcome} · {Math.round(price * 100)}%
@@ -203,18 +198,17 @@ function OrderPanel({ market, outcome, session, balance, onCancel, onSuccess, on
         }}>×</button>
       </div>
 
-      {/* Amount chips */}
       <div style={{ fontSize: 11, color: C.muted, marginBottom: 6, fontWeight: 600,
         textTransform: 'uppercase', letterSpacing: '.06em' }}>Amount (USDC)</div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-        {PRESETS.map(a => (
+        {BUY_PRESETS.map(a => (
           <button key={a} onClick={() => { setPreset(a); setUseCustom(false); }}
             style={chip(!useCustom && preset === a, accent)}>
             ${a}
           </button>
         ))}
         <input
-          ref={customRef} type="number" min="1" placeholder="Other"
+          type="number" min="1" placeholder="Other"
           value={custom}
           onChange={e => { setCustom(e.target.value); setUseCustom(true); }}
           onFocus={() => setUseCustom(true)}
@@ -226,42 +220,36 @@ function OrderPanel({ market, outcome, session, balance, onCancel, onSuccess, on
         />
       </div>
 
-      {/* Order type */}
       <div style={{ fontSize: 11, color: C.muted, marginBottom: 6, fontWeight: 600,
         textTransform: 'uppercase', letterSpacing: '.06em' }}>Order type</div>
       <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
         {(['FOK', 'GTC'] as const).map(t => (
           <button key={t} onClick={() => setOrderType(t)}
-            style={{
-              ...chip(orderType === t, C.brand),
-              borderRadius: 7, padding: '6px 14px',
-            }}>
-            {t === 'FOK' ? '⚡ Market (fill now)' : `📌 Limit ${Math.round(price * 100)}%`}
+            style={{ ...chip(orderType === t, C.brand), borderRadius: 7, padding: '6px 14px' }}>
+            {t === 'FOK' ? '⚡ Market' : `📌 Limit ${Math.round(price * 100)}%`}
           </button>
         ))}
       </div>
       <div style={{ fontSize: 10, color: C.muted, marginBottom: 12, lineHeight: 1.5 }}>
         {orderType === 'FOK'
-          ? 'Fills immediately at best available price · up to 5% slippage allowed'
-          : `Resting limit at ${Math.round(price * 100)}% · fills when matched`}
+          ? 'Fills immediately · up to 5% slippage'
+          : `Resting limit @ ${Math.round(price * 100)}% · fills when matched`}
       </div>
 
-      {/* Summary */}
       {amount > 0 && (
         <div style={{
           background: C.card, border: `1px solid ${C.border}`,
           borderRadius: 8, padding: '8px 12px', marginBottom: 12,
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
-          <span style={{ fontSize: 12, color: C.textMid }}>You spend</span>
+          <span style={{ fontSize: 12, color: C.textMid }}>Pay</span>
           <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>${amount} USDC</span>
           <span style={{ fontSize: 12, color: C.muted }}>→</span>
-          <span style={{ fontSize: 12, color: C.textMid }}>You get ≈</span>
+          <span style={{ fontSize: 12, color: C.textMid }}>Get ≈</span>
           <span style={{ fontSize: 13, fontWeight: 800, color: accent }}>{shares} shares</span>
         </div>
       )}
 
-      {/* Low balance warning */}
       {lowBal && (
         <div style={{ fontSize: 11, color: C.amber, background: C.amberDim,
           border: `1px solid ${C.amber}44`, borderRadius: 6, padding: '6px 10px', marginBottom: 10 }}>
@@ -269,7 +257,6 @@ function OrderPanel({ market, outcome, session, balance, onCancel, onSuccess, on
         </div>
       )}
 
-      {/* Actions */}
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={onCancel} style={{
           flex: 1, padding: '9px', fontSize: 12, fontWeight: 600, borderRadius: 8,
@@ -280,7 +267,7 @@ function OrderPanel({ market, outcome, session, balance, onCancel, onSuccess, on
             flex: 2.5, padding: '9px', fontSize: 13, fontWeight: 800, borderRadius: 8,
             border: 'none', cursor: busy || amount <= 0 ? 'not-allowed' : 'pointer',
             background: busy || amount <= 0 ? C.muted : accent, color: '#fff',
-            opacity: busy ? 0.7 : 1, transition: 'opacity .15s',
+            opacity: busy ? 0.7 : 1,
           }}>
           {busy ? '⏳ Awaiting wallet…' : `Confirm Buy ${outcome}`}
         </button>
@@ -289,7 +276,168 @@ function OrderPanel({ market, outcome, session, balance, onCancel, onSuccess, on
   );
 }
 
-// ─── Market Card ──────────────────────────────────────────────────────────────
+// ─── Sell Panel ───────────────────────────────────────────────────────────────
+interface SellPanelProps {
+  position: Position;
+  session: PolySession;
+  onCancel: () => void;
+  onSuccess: (msg: string) => void;
+  onError:   (msg: string) => void;
+}
+
+function SellPanel({ position, session, onCancel, onSuccess, onError }: SellPanelProps) {
+  const [mode,      setMode]      = useState<'all' | 'half' | 'custom'>('all');
+  const [custom,    setCustom]    = useState('');
+  const [orderType, setOrderType] = useState<'FOK' | 'GTC'>('FOK');
+  const [busy,      setBusy]      = useState(false);
+
+  const pricePct = Math.round(position.currentPrice * 100);
+
+  const sharesToSell = (() => {
+    if (mode === 'all')    return position.size;
+    if (mode === 'half')   return position.size / 2;
+    const c = parseFloat(custom);
+    return isNaN(c) ? 0 : Math.min(c, position.size);
+  })();
+
+  const slipFactor = orderType === 'FOK' ? 0.97 : 1.0;
+  const estUsdc    = sharesToSell * position.currentPrice * slipFactor;
+  const isValid    = sharesToSell > 0.001 && sharesToSell <= position.size;
+
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onCancel]);
+
+  const submit = async () => {
+    if (!isValid || busy) return;
+    if (!session.hasEthProvider) {
+      const url = `https://polymarket.com/event/${position.slug}`;
+      chrome.tabs.create({ url });
+      onSuccess('Opened on Polymarket (social login — sell there)');
+      return;
+    }
+    setBusy(true);
+    try {
+      const sellParams: SellParams = { position, sharesToSell, orderType };
+      const res = await chrome.runtime.sendMessage({
+        type: 'SELL_POSITION', session, sellParams,
+      }) as { type: string; result?: unknown; error?: string };
+
+      if (res.type === 'ORDER_SUCCESS') {
+        onSuccess(`Sold ${sharesToSell.toFixed(2)} shares @ ${pricePct}% ≈ $${estUsdc.toFixed(2)} USDC ✓`);
+      } else {
+        onError(res.error ?? 'Sell failed');
+      }
+    } catch (e) {
+      onError((e as Error).message ?? 'Sell failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{
+      marginTop: 10, borderRadius: 10, border: `1px solid ${C.no}55`,
+      background: C.noDim, padding: '12px 14px',
+      animation: 'slideDown .15s ease',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <span style={{ fontSize: 13, fontWeight: 800, color: C.no }}>
+          Sell {position.outcome} · {pricePct}%
+        </span>
+        <button onClick={onCancel} style={{
+          background: 'none', border: 'none', color: C.muted, cursor: 'pointer',
+          fontSize: 16, lineHeight: 1, padding: '0 4px',
+        }}>×</button>
+      </div>
+
+      {/* Amount selector */}
+      <div style={{ fontSize: 11, color: C.muted, marginBottom: 6, fontWeight: 600,
+        textTransform: 'uppercase', letterSpacing: '.06em' }}>
+        Shares to sell (you hold {position.size.toFixed(2)})
+      </div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+        {(['all', 'half'] as const).map(m => (
+          <button key={m} onClick={() => setMode(m)}
+            style={chip(mode === m, C.no)}>
+            {m === 'all' ? `All (${position.size.toFixed(2)})` : `Half (${(position.size / 2).toFixed(2)})`}
+          </button>
+        ))}
+        <input
+          type="number" min="0.01" step="0.01" placeholder="Custom"
+          value={mode === 'custom' ? custom : ''}
+          onChange={e => { setMode('custom'); setCustom(e.target.value); }}
+          onFocus={() => setMode('custom')}
+          style={{
+            width: 80, padding: '5px 8px', fontSize: 11, fontWeight: 700, borderRadius: 20,
+            border: `1px solid ${mode === 'custom' ? C.no : C.border}`, outline: 'none',
+            background: mode === 'custom' ? C.noDim : 'transparent', color: C.text,
+          }}
+        />
+      </div>
+
+      {/* Order type */}
+      <div style={{ fontSize: 11, color: C.muted, marginBottom: 6, fontWeight: 600,
+        textTransform: 'uppercase', letterSpacing: '.06em' }}>Order type</div>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+        {(['FOK', 'GTC'] as const).map(t => (
+          <button key={t} onClick={() => setOrderType(t)}
+            style={{ ...chip(orderType === t, C.brand), borderRadius: 7, padding: '6px 14px' }}>
+            {t === 'FOK' ? '⚡ Market' : `📌 Limit ${pricePct}%`}
+          </button>
+        ))}
+      </div>
+      <div style={{ fontSize: 10, color: C.muted, marginBottom: 12, lineHeight: 1.5 }}>
+        {orderType === 'FOK'
+          ? 'Fills immediately · accepts up to 3% less USDC'
+          : `Resting limit @ ${pricePct}% · fills when matched`}
+      </div>
+
+      {/* Summary */}
+      {isValid && (
+        <div style={{
+          background: C.card, border: `1px solid ${C.border}`,
+          borderRadius: 8, padding: '8px 12px', marginBottom: 12,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <span style={{ fontSize: 12, color: C.textMid }}>Sell</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{sharesToSell.toFixed(2)} shares</span>
+          <span style={{ fontSize: 12, color: C.muted }}>→</span>
+          <span style={{ fontSize: 12, color: C.textMid }}>Get ≈</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: C.yes }}>${estUsdc.toFixed(2)} USDC</span>
+        </div>
+      )}
+
+      {/* Social login warning */}
+      {!session.hasEthProvider && (
+        <div style={{ fontSize: 11, color: C.amber, background: C.amberDim,
+          border: `1px solid ${C.amber}44`, borderRadius: 6, padding: '6px 10px', marginBottom: 10 }}>
+          Social login detected — will open Polymarket to complete sell
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={onCancel} style={{
+          flex: 1, padding: '9px', fontSize: 12, fontWeight: 600, borderRadius: 8,
+          border: `1px solid ${C.border}`, background: 'transparent', color: C.textMid, cursor: 'pointer',
+        }}>Cancel</button>
+        <button onClick={submit} disabled={busy || !isValid}
+          style={{
+            flex: 2.5, padding: '9px', fontSize: 13, fontWeight: 800, borderRadius: 8,
+            border: 'none', cursor: busy || !isValid ? 'not-allowed' : 'pointer',
+            background: busy || !isValid ? C.muted : C.no, color: '#fff',
+            opacity: busy ? 0.7 : 1,
+          }}>
+          {busy ? '⏳ Awaiting wallet…' : `Confirm Sell ${position.outcome}`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Market Card (Search tab) ─────────────────────────────────────────────────
 function MarketCard({
   market, session, activeOrder, balance, onBuy, onCancel, onSuccess, onError,
 }: {
@@ -319,7 +467,6 @@ function MarketCard({
         transition: 'background .15s, border-color .15s',
       }}
     >
-      {/* Question */}
       <div style={{
         fontSize: 13, fontWeight: 600, color: C.text, lineHeight: 1.45,
         marginBottom: 10, display: '-webkit-box', WebkitLineClamp: 3,
@@ -330,9 +477,8 @@ function MarketCard({
 
       <OddsBar outcomes={market.outcomes} prices={market.outcomePrices} />
 
-      {/* Footer row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 11, color: C.muted, fontWeight: 500 }}>
+        <span style={{ fontSize: 11, color: C.muted }}>
           📊 {fmtVol(market.volume24hr || market.volume)}
         </span>
         {market.endDate && (
@@ -342,18 +488,19 @@ function MarketCard({
         )}
         <div style={{ flex: 1 }} />
 
-        {/* Quick buy buttons (binary markets + logged in) */}
         {binary && session ? (
           <div style={{ display: 'flex', gap: 5 }}>
             <button onClick={() => onBuy(market, 'Yes')} style={{
-              fontSize: 11, fontWeight: 800, background: isOpen && activeOrder?.outcome === 'Yes' ? C.yes : C.yesDim,
+              fontSize: 11, fontWeight: 800,
+              background: isOpen && activeOrder?.outcome === 'Yes' ? C.yes : C.yesDim,
               color: C.yes, border: `1px solid ${C.yes}55`, borderRadius: 6,
-              padding: '4px 10px', cursor: 'pointer', transition: 'background .15s',
+              padding: '4px 10px', cursor: 'pointer',
             }}>YES {yPct}%</button>
             <button onClick={() => onBuy(market, 'No')} style={{
-              fontSize: 11, fontWeight: 800, background: isOpen && activeOrder?.outcome === 'No' ? C.no : C.noDim,
+              fontSize: 11, fontWeight: 800,
+              background: isOpen && activeOrder?.outcome === 'No' ? C.no : C.noDim,
               color: C.no, border: `1px solid ${C.no}55`, borderRadius: 6,
-              padding: '4px 10px', cursor: 'pointer', transition: 'background .15s',
+              padding: '4px 10px', cursor: 'pointer',
             }}>NO {nPct}%</button>
           </div>
         ) : (
@@ -365,11 +512,147 @@ function MarketCard({
         )}
       </div>
 
-      {/* Order panel */}
       {isOpen && session && (
         <OrderPanel
           market={market} outcome={activeOrder!.outcome}
           session={session} balance={balance}
+          onCancel={onCancel} onSuccess={onSuccess} onError={onError}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Position Card (Portfolio tab) ────────────────────────────────────────────
+function PositionCard({
+  position, session, activeSell, onSell, onCancel, onSuccess, onError,
+}: {
+  position: Position;
+  session: PolySession;
+  activeSell: string | null;   // position.asset of open sell panel
+  onSell:    (asset: string) => void;
+  onCancel:  () => void;
+  onSuccess: (msg: string) => void;
+  onError:   (msg: string) => void;
+}) {
+  const [hover, setHover] = useState(false);
+  const isOpen  = activeSell === position.asset;
+  const pnlPos  = position.pnl >= 0;
+  const pnlColor = pnlPos ? C.yes : C.no;
+  const curPct   = Math.round(position.currentPrice * 100);
+  const avgPct   = Math.round(position.avgPrice * 100);
+  const outcomeColor = position.outcome.toLowerCase() === 'yes' ? C.yes : C.no;
+
+  return (
+    <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        background: hover ? C.cardHover : C.card,
+        border: `1px solid ${isOpen ? C.borderLight : C.border}`,
+        borderRadius: 12, padding: '12px 14px', marginBottom: 8,
+        transition: 'background .15s, border-color .15s',
+      }}
+    >
+      {/* Title + outcome badge */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+        <div style={{
+          fontSize: 13, fontWeight: 600, color: C.text, lineHeight: 1.4, flex: 1,
+          display: '-webkit-box', WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
+        }}>
+          {position.title || 'Unknown market'}
+        </div>
+        <span style={{
+          flexShrink: 0, fontSize: 10, fontWeight: 800, borderRadius: 20,
+          padding: '3px 9px', border: `1px solid ${outcomeColor}55`,
+          background: outcomeColor + '22', color: outcomeColor,
+          marginTop: 1,
+        }}>
+          {position.outcome}
+        </span>
+      </div>
+
+      {/* Stats row */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 10,
+      }}>
+        <div style={{ background: C.panel, borderRadius: 8, padding: '7px 10px' }}>
+          <div style={{ fontSize: 9, color: C.muted, fontWeight: 600, textTransform: 'uppercase',
+            letterSpacing: '.06em', marginBottom: 3 }}>Shares</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>
+            {position.size.toFixed(2)}
+          </div>
+        </div>
+        <div style={{ background: C.panel, borderRadius: 8, padding: '7px 10px' }}>
+          <div style={{ fontSize: 9, color: C.muted, fontWeight: 600, textTransform: 'uppercase',
+            letterSpacing: '.06em', marginBottom: 3 }}>Price</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>
+            {curPct}%
+            <span style={{ fontSize: 10, color: C.muted, marginLeft: 3 }}>
+              (avg {avgPct}%)
+            </span>
+          </div>
+        </div>
+        <div style={{ background: C.panel, borderRadius: 8, padding: '7px 10px' }}>
+          <div style={{ fontSize: 9, color: C.muted, fontWeight: 600, textTransform: 'uppercase',
+            letterSpacing: '.06em', marginBottom: 3 }}>P&amp;L</div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: pnlColor }}>
+            {fmtPnl(position.pnl, position.pnlPercent)}
+          </div>
+        </div>
+      </div>
+
+      {/* Value + actions */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div>
+          <span style={{ fontSize: 11, color: C.muted }}>Value </span>
+          <span style={{ fontSize: 12, fontWeight: 800, color: C.text }}>
+            ${position.currentValue.toFixed(2)}
+          </span>
+          <span style={{ fontSize: 10, color: C.muted }}>
+            {' '}/ ${position.initialValue.toFixed(2)} cost
+          </span>
+        </div>
+        <div style={{ flex: 1 }} />
+
+        {position.closed ? (
+          <span style={{ fontSize: 11, fontWeight: 700, color: C.muted,
+            background: C.border, borderRadius: 20, padding: '3px 10px' }}>
+            Resolved
+          </span>
+        ) : (
+          <div style={{ display: 'flex', gap: 6 }}>
+            <a
+              href={`https://polymarket.com/event/${position.slug}`}
+              target="_blank" rel="noopener noreferrer"
+              style={{
+                fontSize: 11, fontWeight: 700, color: C.brand,
+                background: C.brandDim, border: `1px solid ${C.brand}44`,
+                borderRadius: 6, padding: '4px 9px', textDecoration: 'none',
+              }}
+            >View ↗</a>
+            <button
+              onClick={() => onSell(position.asset)}
+              style={{
+                fontSize: 11, fontWeight: 800,
+                background: isOpen ? C.no : C.noDim,
+                color: isOpen ? '#fff' : C.no,
+                border: `1px solid ${C.no}55`, borderRadius: 6,
+                padding: '4px 12px', cursor: 'pointer',
+                transition: 'background .15s, color .15s',
+              }}
+            >
+              {isOpen ? 'Selling…' : 'Sell'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Inline sell panel */}
+      {isOpen && (
+        <SellPanel
+          position={position} session={session}
           onCancel={onCancel} onSuccess={onSuccess} onError={onError}
         />
       )}
@@ -423,7 +706,7 @@ function SessionPanel({
         </div>
         <div style={{ fontSize: 11, color: C.textMid, marginBottom: 10, lineHeight: 1.55 }}>
           {noTab
-            ? 'Open polymarket.com in any tab and log in. All login methods work.'
+            ? 'Open polymarket.com in any tab and log in.'
             : 'Log in at polymarket.com — MetaMask, Coinbase, WalletConnect, Google, email all work.'}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -470,7 +753,7 @@ function SessionPanel({
       <div style={{ flex: 1 }} />
       <button onClick={onRefresh} title="Refresh session" style={{
         background: 'none', border: 'none', color: C.muted, cursor: 'pointer',
-        fontSize: 14, padding: '2px 4px', transition: 'color .15s',
+        fontSize: 14, padding: '2px 4px',
       }}>↻</button>
     </div>
   );
@@ -493,48 +776,218 @@ function Toast({ ok, msg }: { ok: boolean; msg: string }) {
   );
 }
 
-// ─── Root App ─────────────────────────────────────────────────────────────────
-export default function App() {
-  const [session,        setSession]        = useState<PolySession | null>(null);
-  const [sessionLoading, setSessionLoading] = useState(true);
-  const [noTab,          setNoTab]          = useState(false);
-  const [balance,        setBalance]        = useState<number | null>(null);
+// ─── Tab Nav ──────────────────────────────────────────────────────────────────
+type Tab = 'search' | 'portfolio';
 
+function TabNav({
+  active, onChange, positionCount,
+}: {
+  active: Tab;
+  onChange: (t: Tab) => void;
+  positionCount: number | null;
+}) {
+  const tabStyle = (t: Tab): React.CSSProperties => ({
+    flex: 1, padding: '10px 0', fontSize: 13, fontWeight: 700,
+    background: 'none', border: 'none', cursor: 'pointer',
+    color: active === t ? C.text : C.muted,
+    borderBottom: `2px solid ${active === t ? C.brand : 'transparent'}`,
+    transition: 'color .15s, border-color .15s',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+  });
+
+  return (
+    <div style={{
+      display: 'flex', background: C.panel,
+      borderBottom: `1px solid ${C.border}`,
+    }}>
+      <button style={tabStyle('search')} onClick={() => onChange('search')}>
+        🔍 Search
+      </button>
+      <button style={tabStyle('portfolio')} onClick={() => onChange('portfolio')}>
+        💼 Portfolio
+        {positionCount !== null && positionCount > 0 && (
+          <span style={{
+            fontSize: 10, fontWeight: 800, background: C.brand,
+            color: '#fff', borderRadius: 20, padding: '1px 6px',
+            minWidth: 16, textAlign: 'center',
+          }}>
+            {positionCount}
+          </span>
+        )}
+      </button>
+    </div>
+  );
+}
+
+// ─── Portfolio View ───────────────────────────────────────────────────────────
+function PortfolioView({
+  session, onSuccess, onError,
+}: {
+  session: PolySession | null;
+  onSuccess: (msg: string) => void;
+  onError:   (msg: string) => void;
+}) {
+  const [positions,  setPositions]  = useState<Position[]>([]);
+  const [loading,    setLoading]    = useState(false);
+  const [loaded,     setLoaded]     = useState(false);
+  const [activeSell, setActiveSell] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!session) return;
+    setLoading(true);
+    try {
+      const pos = await getPositions(session.address);
+      setPositions(pos);
+    } finally {
+      setLoading(false);
+      setLoaded(true);
+    }
+  }, [session]);
+
+  // Auto-load when portfolio tab becomes visible
+  useEffect(() => {
+    if (!loaded) load();
+  }, [load, loaded]);
+
+  if (!session) {
+    return (
+      <div style={{ textAlign: 'center', padding: '40px 20px', color: C.muted }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>🔐</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>
+          Connect to Polymarket first
+        </div>
+        <div style={{ fontSize: 12 }}>Log in at polymarket.com to see your positions</div>
+        <button
+          onClick={() => chrome.tabs.create({ url: 'https://polymarket.com' })}
+          style={{ ...btn(C.brand), marginTop: 16, fontSize: 12 }}
+        >Open Polymarket ↗</button>
+      </div>
+    );
+  }
+
+  const open   = positions.filter(p => !p.closed);
+  const closed = positions.filter(p => p.closed);
+  const totalValue = open.reduce((s, p) => s + p.currentValue, 0);
+  const totalPnl   = open.reduce((s, p) => s + p.pnl, 0);
+
+  return (
+    <div>
+      {/* Summary bar */}
+      {!loading && open.length > 0 && (
+        <div style={{
+          display: 'flex', gap: 0,
+          borderBottom: `1px solid ${C.border}`,
+          background: C.panel,
+        }}>
+          {[
+            { label: 'Positions', value: String(open.length), color: C.text },
+            { label: 'Value', value: `$${totalValue.toFixed(2)}`, color: C.text },
+            { label: 'P&L', value: `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}`, color: totalPnl >= 0 ? C.yes : C.no },
+          ].map(({ label, value, color }) => (
+            <div key={label} style={{
+              flex: 1, padding: '10px 0', textAlign: 'center',
+              borderRight: `1px solid ${C.border}`,
+            }}>
+              <div style={{ fontSize: 9, color: C.muted, fontWeight: 600, textTransform: 'uppercase',
+                letterSpacing: '.06em', marginBottom: 3 }}>{label}</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color }}>{value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Content */}
+      <div style={{ padding: '10px 12px', maxHeight: 420, overflowY: 'auto' }}>
+        {/* Loading skeletons */}
+        {loading && [1, 2, 3].map(i => <SkeletonCard key={i} />)}
+
+        {/* Empty state */}
+        {!loading && loaded && positions.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: C.muted }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>📭</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>
+              No open positions
+            </div>
+            <div style={{ fontSize: 12, lineHeight: 1.6 }}>
+              You don't hold any shares yet.<br />
+              Search for a market and place your first trade!
+            </div>
+          </div>
+        )}
+
+        {/* Open positions */}
+        {!loading && open.map(p => (
+          <PositionCard
+            key={p.asset}
+            position={p}
+            session={session}
+            activeSell={activeSell}
+            onSell={asset => setActiveSell(prev => prev === asset ? null : asset)}
+            onCancel={() => setActiveSell(null)}
+            onSuccess={msg => { setActiveSell(null); onSuccess(msg); load(); }}
+            onError={msg => onError(msg)}
+          />
+        ))}
+
+        {/* Resolved positions */}
+        {!loading && closed.length > 0 && (
+          <>
+            <div style={{
+              fontSize: 10, fontWeight: 600, color: C.muted,
+              textTransform: 'uppercase', letterSpacing: '.06em',
+              padding: '8px 4px 4px',
+            }}>
+              Resolved ({closed.length})
+            </div>
+            {closed.map(p => (
+              <PositionCard
+                key={p.asset}
+                position={p}
+                session={session}
+                activeSell={null}
+                onSell={() => {}}
+                onCancel={() => {}}
+                onSuccess={onSuccess}
+                onError={onError}
+              />
+            ))}
+          </>
+        )}
+
+        {/* Refresh button */}
+        {!loading && loaded && (
+          <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
+            <button onClick={load} style={{
+              fontSize: 12, fontWeight: 600, color: C.muted,
+              background: 'none', border: `1px solid ${C.border}`,
+              borderRadius: 20, padding: '6px 16px', cursor: 'pointer',
+            }}>↻ Refresh positions</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Search View ──────────────────────────────────────────────────────────────
+function SearchView({
+  session, balance, onToast,
+}: {
+  session: PolySession | null;
+  balance: number | null;
+  onToast: (ok: boolean, msg: string) => void;
+}) {
   const [query,       setQuery]       = useState('');
   const [markets,     setMarkets]     = useState<PolymarketMarket[]>([]);
   const [searching,   setSearching]   = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searched,    setSearched]    = useState(false);
-
-  const [recents,   setRecents]   = useState<string[]>([]);
-  const [showHints, setShowHints] = useState(false);
-
+  const [recents,     setRecents]     = useState<string[]>([]);
+  const [showHints,   setShowHints]   = useState(false);
   const [activeOrder, setActiveOrder] = useState<{ marketId: string; outcome: 'Yes' | 'No' } | null>(null);
-  const [toast,       setToast]       = useState<{ ok: boolean; msg: string } | null>(null);
-  const toastRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const searchRef  = useRef<HTMLInputElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const initRef   = useRef(false);
 
-  // ── Load session ────────────────────────────────────────────────────────────
-  const loadSession = useCallback(async () => {
-    setSessionLoading(true);
-    try {
-      const res = await chrome.runtime.sendMessage({ type: 'GET_SESSION' }) as
-        { type: string; session: PolySession | null; noTab: boolean };
-      setSession(res.session ?? null);
-      setNoTab(res.noTab ?? false);
-      if (res.session) {
-        getPolyBalance(res.session.address).then(setBalance).catch(() => {});
-      } else {
-        setBalance(null);
-      }
-    } catch {
-      setSession(null);
-    } finally {
-      setSessionLoading(false);
-    }
-  }, []);
-
-  // ── Load recent searches ────────────────────────────────────────────────────
   useEffect(() => {
     chrome.storage.local.get('pm_recents', d => setRecents(d.pm_recents ?? []));
   }, []);
@@ -547,29 +1000,6 @@ export default function App() {
     });
   }, []);
 
-  // ── Auto-search from active tab on open ─────────────────────────────────────
-  useEffect(() => {
-    loadSession();
-    chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
-      const tab = tabs[0];
-      if (!tab?.title || tab.url?.includes('polymarket.com')) return;
-      const kw = keywordsFromTitle(tab.title);
-      if (!kw) return;
-      setQuery(kw);
-      doSearch(kw);
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ── Toast helper ─────────────────────────────────────────────────────────────
-  const showToast = useCallback((ok: boolean, msg: string) => {
-    setToast({ ok, msg });
-    setActiveOrder(null);
-    if (toastRef.current) clearTimeout(toastRef.current);
-    toastRef.current = setTimeout(() => setToast(null), 5_000);
-  }, []);
-
-  // ── Search ────────────────────────────────────────────────────────────────────
   const doSearch = useCallback(async (q: string) => {
     const trimmed = q.trim();
     if (!trimmed) return;
@@ -593,15 +1023,207 @@ export default function App() {
     }
   }, [saveRecent]);
 
-  const handleSearchKey = (e: KeyboardEvent<HTMLInputElement>) => {
+  // Auto-search from active tab on first mount
+  useEffect(() => {
+    if (initRef.current) return;
+    initRef.current = true;
+    chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
+      const tab = tabs[0];
+      if (!tab?.title || tab.url?.includes('polymarket.com')) return;
+      const kw = keywordsFromTitle(tab.title);
+      if (!kw) return;
+      setQuery(kw);
+      doSearch(kw);
+    });
+  }, [doSearch]);
+
+  const handleKey = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') doSearch(query);
     if (e.key === 'Escape') { setShowHints(false); (e.target as HTMLInputElement).blur(); }
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <>
-      {/* Global keyframes */}
+      {/* Search bar */}
+      <div style={{ padding: '12px 16px', background: C.panel, borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ position: 'relative' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            background: C.card, border: `1px solid ${C.border}`,
+            borderRadius: 10, padding: '0 12px',
+          }}>
+            <span style={{ fontSize: 14, color: C.muted, flexShrink: 0 }}>🔍</span>
+            <input
+              ref={searchRef}
+              type="text" value={query}
+              placeholder="Search any topic…"
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={handleKey}
+              onFocus={() => setShowHints(recents.length > 0)}
+              onBlur={() => setTimeout(() => setShowHints(false), 150)}
+              style={{
+                flex: 1, background: 'none', border: 'none', outline: 'none',
+                fontSize: 13, color: C.text, padding: '10px 0', fontFamily: FONT,
+              }}
+            />
+            {query && (
+              <button
+                onClick={() => { setQuery(''); setSearched(false); setMarkets([]); searchRef.current?.focus(); }}
+                style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 16, padding: '0 2px' }}
+              >×</button>
+            )}
+          </div>
+
+          {showHints && recents.length > 0 && (
+            <div style={{
+              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+              background: C.card, border: `1px solid ${C.border}`, borderRadius: 10,
+              marginTop: 4, overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,.5)',
+            }}>
+              <div style={{ padding: '6px 12px', fontSize: 10, color: C.muted,
+                textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600 }}>Recent</div>
+              {recents.map(r => (
+                <button key={r} onClick={() => { setQuery(r); doSearch(r); }}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    padding: '8px 14px', fontSize: 13, color: C.textMid,
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    borderTop: `1px solid ${C.border}`,
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = C.cardHover)}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                >
+                  🕐 {r}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <button onClick={() => doSearch(query)} disabled={searching || !query.trim()}
+          style={{
+            ...btn(C.brand, true), marginTop: 8,
+            opacity: searching || !query.trim() ? 0.5 : 1,
+            cursor: searching || !query.trim() ? 'not-allowed' : 'pointer',
+          }}>
+          {searching ? 'Searching…' : 'Search Markets'}
+        </button>
+      </div>
+
+      {/* Results */}
+      <div style={{ padding: '10px 12px', maxHeight: 400, overflowY: 'auto' }}>
+        {searching && [1, 2, 3].map(i => <SkeletonCard key={i} />)}
+
+        {searchError && !searching && (
+          <div style={{
+            textAlign: 'center', padding: '20px 16px', color: C.no,
+            fontSize: 13, background: C.noDim, borderRadius: 10, border: `1px solid ${C.no}33`,
+          }}>⚠ {searchError}</div>
+        )}
+
+        {!searching && searched && markets.length === 0 && !searchError && (
+          <div style={{ textAlign: 'center', padding: '28px 16px', color: C.muted }}>
+            <div style={{ fontSize: 28, marginBottom: 10 }}>🔍</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.textMid }}>No active markets found</div>
+            <div style={{ fontSize: 12, marginTop: 4 }}>Try different keywords</div>
+          </div>
+        )}
+
+        {!searching && markets.map(m => (
+          <MarketCard key={m.id} market={m} session={session}
+            activeOrder={activeOrder} balance={balance}
+            onBuy={(mkt, o) => setActiveOrder(prev =>
+              prev?.marketId === mkt.id && prev.outcome === o ? null : { marketId: mkt.id, outcome: o }
+            )}
+            onCancel={() => setActiveOrder(null)}
+            onSuccess={msg => { onToast(true, msg); setActiveOrder(null); }}
+            onError={msg => onToast(false, msg)}
+          />
+        ))}
+
+        {!searched && !searching && (
+          <div style={{ textAlign: 'center', padding: '32px 20px', color: C.muted }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>📡</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>
+              Search any topic
+            </div>
+            <div style={{ fontSize: 12, lineHeight: 1.65 }}>
+              {session
+                ? 'Find a market, click YES% or NO% to order directly from here'
+                : 'Log in at polymarket.com first, then search to place orders'}
+            </div>
+            {!session && (
+              <button onClick={() => chrome.tabs.create({ url: 'https://polymarket.com' })}
+                style={{ ...btn(C.brand), marginTop: 16, fontSize: 12 }}>
+                Open Polymarket ↗
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div style={{
+        padding: '8px 16px', borderTop: `1px solid ${C.border}`, background: C.panel,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <span style={{ fontSize: 10, color: C.muted }}>
+          {searched && !searching ? `${markets.length} market${markets.length !== 1 ? 's' : ''}` : 'Polymarket Radar v1.2'}
+        </span>
+        <a href="https://polymarket.com" target="_blank" rel="noopener"
+          style={{ fontSize: 10, color: C.brand, fontWeight: 700, textDecoration: 'none' }}>
+          polymarket.com ↗
+        </a>
+      </div>
+    </>
+  );
+}
+
+// ─── Root App ─────────────────────────────────────────────────────────────────
+export default function App() {
+  const [session,        setSession]        = useState<PolySession | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
+  const [noTab,          setNoTab]          = useState(false);
+  const [balance,        setBalance]        = useState<number | null>(null);
+  const [tab,            setTab]            = useState<Tab>('search');
+  const [posCount,       setPosCount]       = useState<number | null>(null);
+  const [toast,          setToast]          = useState<{ ok: boolean; msg: string } | null>(null);
+  const toastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((ok: boolean, msg: string) => {
+    setToast({ ok, msg });
+    if (toastRef.current) clearTimeout(toastRef.current);
+    toastRef.current = setTimeout(() => setToast(null), 5_000);
+  }, []);
+
+  const loadSession = useCallback(async () => {
+    setSessionLoading(true);
+    try {
+      const res = await chrome.runtime.sendMessage({ type: 'GET_SESSION' }) as
+        { type: string; session: PolySession | null; noTab: boolean };
+      setSession(res.session ?? null);
+      setNoTab(res.noTab ?? false);
+      if (res.session) {
+        getPolyBalance(res.session.address).then(setBalance).catch(() => {});
+        // Pre-fetch position count for badge
+        getPositions(res.session.address)
+          .then(ps => setPosCount(ps.filter(p => !p.closed).length))
+          .catch(() => {});
+      } else {
+        setBalance(null);
+        setPosCount(null);
+      }
+    } catch {
+      setSession(null);
+    } finally {
+      setSessionLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadSession(); }, [loadSession]);
+
+  return (
+    <>
       <style>{`
         @keyframes slideDown { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:none } }
         @keyframes pulse     { 0%,100% { opacity:.4 } 50% { opacity:1 } }
@@ -611,11 +1233,12 @@ export default function App() {
         ::-webkit-scrollbar-track { background:transparent }
         ::-webkit-scrollbar-thumb { background:${C.border}; border-radius:4px }
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none }
+        button:focus-visible { outline: 2px solid ${C.brand}; outline-offset: 2px; }
       `}</style>
 
-      <div style={{ fontFamily: FONT, background: C.bg, color: C.text, width: 400, minHeight: 200 }}>
+      <div style={{ fontFamily: FONT, background: C.bg, color: C.text, width: 420, minHeight: 200 }}>
 
-        {/* ── Header ── */}
+        {/* Header */}
         <div style={{
           background: C.panel, borderBottom: `1px solid ${C.border}`,
           padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10,
@@ -631,7 +1254,7 @@ export default function App() {
               Polymarket Radar
             </div>
             <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>
-              Quick orders via your session
+              Trade smarter, faster
             </div>
           </div>
           <div style={{ flex: 1 }} />
@@ -650,159 +1273,30 @@ export default function App() {
           )}
         </div>
 
-        {/* ── Session status ── */}
+        {/* Session strip */}
         <SessionPanel session={session} loading={sessionLoading} noTab={noTab}
           balance={balance} onRefresh={loadSession} />
 
-        {/* ── Toast ── */}
+        {/* Toast */}
         {toast && <Toast ok={toast.ok} msg={toast.msg} />}
 
-        {/* ── Search ── */}
-        <div style={{ padding: '12px 16px', background: C.panel, borderBottom: `1px solid ${C.border}` }}>
-          <div style={{ position: 'relative' }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              background: C.card, border: `1px solid ${C.border}`,
-              borderRadius: 10, padding: '0 12px', transition: 'border-color .15s',
-            }}>
-              <span style={{ fontSize: 14, color: C.muted, flexShrink: 0 }}>🔍</span>
-              <input
-                ref={searchRef}
-                type="text" value={query}
-                placeholder="Search any topic…"
-                onChange={e => setQuery(e.target.value)}
-                onKeyDown={handleSearchKey}
-                onFocus={() => setShowHints(recents.length > 0)}
-                onBlur={() => setTimeout(() => setShowHints(false), 150)}
-                style={{
-                  flex: 1, background: 'none', border: 'none', outline: 'none',
-                  fontSize: 13, color: C.text, padding: '10px 0', fontFamily: FONT,
-                }}
-              />
-              {query && (
-                <button onClick={() => { setQuery(''); setSearched(false); setMarkets([]); searchRef.current?.focus(); }}
-                  style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', padding: '0 2px', fontSize: 16 }}>
-                  ×
-                </button>
-              )}
-            </div>
+        {/* Tab navigation */}
+        <TabNav active={tab} onChange={setTab} positionCount={posCount} />
 
-            {/* Recent searches dropdown */}
-            {showHints && recents.length > 0 && (
-              <div style={{
-                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-                background: C.card, border: `1px solid ${C.border}`, borderRadius: 10,
-                marginTop: 4, overflow: 'hidden',
-                boxShadow: '0 8px 24px rgba(0,0,0,.5)',
-              }}>
-                <div style={{ padding: '6px 12px', fontSize: 10, color: C.muted,
-                  textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600 }}>
-                  Recent
-                </div>
-                {recents.map(r => (
-                  <button key={r} onClick={() => { setQuery(r); doSearch(r); }}
-                    style={{
-                      display: 'block', width: '100%', textAlign: 'left',
-                      padding: '8px 14px', fontSize: 13, color: C.textMid,
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      borderTop: `1px solid ${C.border}`,
-                      transition: 'background .1s',
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.background = C.cardHover)}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                  >
-                    🕐 {r}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <button onClick={() => doSearch(query)} disabled={searching || !query.trim()}
-            style={{
-              ...btn(C.brand, true), marginTop: 8, opacity: searching || !query.trim() ? 0.5 : 1,
-              cursor: searching || !query.trim() ? 'not-allowed' : 'pointer',
-            }}>
-            {searching ? 'Searching…' : 'Search Markets'}
-          </button>
-        </div>
-
-        {/* ── Results ── */}
-        <div style={{ padding: '10px 12px', maxHeight: 400, overflowY: 'auto' }}>
-          {/* Skeleton while loading */}
-          {searching && [1, 2, 3].map(i => <SkeletonCard key={i} />)}
-
-          {/* Error */}
-          {searchError && !searching && (
-            <div style={{
-              textAlign: 'center', padding: '20px 16px', color: C.no,
-              fontSize: 13, background: C.noDim, borderRadius: 10,
-              border: `1px solid ${C.no}33`,
-            }}>
-              ⚠ {searchError}
-            </div>
-          )}
-
-          {/* No results */}
-          {!searching && searched && markets.length === 0 && !searchError && (
-            <div style={{ textAlign: 'center', padding: '28px 16px', color: C.muted }}>
-              <div style={{ fontSize: 28, marginBottom: 10 }}>🔍</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: C.textMid }}>No active markets found</div>
-              <div style={{ fontSize: 12, marginTop: 4 }}>Try different keywords</div>
-            </div>
-          )}
-
-          {/* Market cards */}
-          {!searching && markets.map(m => (
-            <MarketCard key={m.id} market={m} session={session}
-              activeOrder={activeOrder} balance={balance}
-              onBuy={(mkt, o) => {
-                setActiveOrder(prev =>
-                  prev?.marketId === mkt.id && prev.outcome === o ? null : { marketId: mkt.id, outcome: o }
-                );
-              }}
-              onCancel={() => setActiveOrder(null)}
-              onSuccess={msg => showToast(true, msg)}
-              onError={msg => showToast(false, msg)}
-            />
-          ))}
-
-          {/* Empty state */}
-          {!searched && !searching && (
-            <div style={{ textAlign: 'center', padding: '32px 20px', color: C.muted }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>📡</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>
-                Search any topic
-              </div>
-              <div style={{ fontSize: 12, lineHeight: 1.65 }}>
-                {session
-                  ? 'Find a market, then click YES% or NO% to quick-order directly from here'
-                  : 'Log in at polymarket.com first, then search to place orders'}
-              </div>
-              {!session && (
-                <button onClick={() => chrome.tabs.create({ url: 'https://polymarket.com' })}
-                  style={{ ...btn(C.brand), marginTop: 16, fontSize: 12 }}>
-                  Open Polymarket ↗
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* ── Footer ── */}
-        <div style={{
-          padding: '8px 16px', borderTop: `1px solid ${C.border}`,
-          background: C.panel,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        }}>
-          <span style={{ fontSize: 10, color: C.muted }}>
-            {searched && !searching ? `${markets.length} market${markets.length !== 1 ? 's' : ''}` : 'Polymarket Radar v1.1'}
-          </span>
-          <a href="https://polymarket.com" target="_blank" rel="noopener"
-            style={{ fontSize: 10, color: C.brand, fontWeight: 700, textDecoration: 'none' }}>
-            polymarket.com ↗
-          </a>
-        </div>
+        {/* Tab content */}
+        {tab === 'search' ? (
+          <SearchView
+            session={session}
+            balance={balance}
+            onToast={showToast}
+          />
+        ) : (
+          <PortfolioView
+            session={session}
+            onSuccess={msg => showToast(true, msg)}
+            onError={msg => showToast(false, msg)}
+          />
+        )}
       </div>
     </>
   );

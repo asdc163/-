@@ -273,7 +273,52 @@ var PolymarketBg = (() => {
           });
           return true;
         }
-        // ── Place order via polymarket.com page session ───────────────────
+        // ── Sell position (SELL order, side='1') ─────────────────────────
+        case "SELL_POSITION": {
+          const { session, sellParams } = message;
+          const { position, sharesToSell, orderType } = sellParams;
+          const effectivePrice = orderType === "FOK" ? Math.max(position.currentPrice * 0.97, 0.01) : position.currentPrice;
+          const makerAmountBN = BigInt(Math.round(sharesToSell * 1e6));
+          const takerAmountBN = BigInt(Math.round(sharesToSell * effectivePrice * 1e6));
+          const sellOrder = {
+            salt: randomSalt(),
+            maker: session.address,
+            signer: session.address,
+            taker: "0x0000000000000000000000000000000000000000",
+            tokenId: position.asset,
+            makerAmount: makerAmountBN.toString(),
+            takerAmount: takerAmountBN.toString(),
+            expiration: "0",
+            nonce: "0",
+            feeRateBps: "0",
+            side: "1",
+            // SELL
+            signatureType: "0"
+          };
+          const sellDomain = {
+            name: "CTF Exchange",
+            version: "1",
+            chainId: POLYGON_CHAIN_ID,
+            verifyingContract: position.negRisk ? NEG_RISK_CTF_EX : CTF_EXCHANGE
+          };
+          findPolymarketTab().then((tab) => {
+            if (!tab?.id) throw new Error("No polymarket.com tab open. Please open Polymarket first.");
+            if (!session.hasEthProvider) throw new Error("NO_ETH_PROVIDER");
+            return chrome.tabs.sendMessage(tab.id, {
+              type: "PM_SIGN_ORDER",
+              address: session.address,
+              order: sellOrder,
+              domain: sellDomain
+            });
+          }).then((res) => {
+            if (!res) throw new Error("No response from Polymarket tab");
+            if (res.error) throw new Error(res.error);
+            const signed = { ...sellOrder, signature: res.signature, negRisk: position.negRisk };
+            return submitOrder(session, signed, orderType);
+          }).then((result) => sendResponse({ type: "ORDER_SUCCESS", result })).catch((err) => sendResponse({ type: "ORDER_ERROR", error: err.message ?? String(err) }));
+          return true;
+        }
+        // ── Place BUY order via polymarket.com page session ───────────────
         case "PLACE_ORDER": {
           const { session, params, market } = message;
           const { order, domain } = buildUnsignedOrder(session, market, params);
