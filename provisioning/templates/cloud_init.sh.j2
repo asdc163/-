@@ -6,7 +6,6 @@
 # User ID  : {{ user_id }}
 # Plan     : {{ plan_name }}
 # Platform : {{ platform }}
-# Bot Limit: {{ max_bot_instances }}
 # =============================================================
 set -euo pipefail
 
@@ -14,7 +13,6 @@ LOG="/var/log/openclaw-init.log"
 exec > >(tee -a "$LOG") 2>&1
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
-die() { log "ERROR: $*"; exit 1; }
 
 log "====== 龍蝦雲 Init 開始 ======"
 
@@ -25,27 +23,44 @@ apt-get update -y -q
 apt-get upgrade -y -q
 apt-get install -y -q curl wget git ufw fail2ban logrotate
 
-# ── 2. 安裝 Node.js 20 LTS ─────────────────────────────────────
-log "[2/7] 安裝 Node.js 20 LTS..."
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash - > /dev/null 2>&1
+# ── 2. 安裝 Node.js 22 LTS ─────────────────────────────────────
+# OpenClaw 官方要求 Node.js >= 22
+log "[2/7] 安裝 Node.js 22 LTS..."
+curl -fsSL https://deb.nodesource.com/setup_22.x | bash - > /dev/null 2>&1
 apt-get install -y -q nodejs
-log "  Node $(node -v) / npm $(npm -v)"
+NODE_VER=$(node -v)
+NPM_VER=$(npm -v)
+log "  Node $NODE_VER / npm $NPM_VER"
 
-# ── 3. 安裝 OpenClaw ───────────────────────────────────────────
+# 版本保障：確認 ≥ 22
+NODE_MAJOR=$(node -e "process.stdout.write(String(process.version.split('.')[0].replace('v','')))")
+if [ "$NODE_MAJOR" -lt 22 ]; then
+  log "ERROR: Node.js 版本不足（需要 >= 22，目前 $NODE_VER），終止安裝"
+  exit 1
+fi
+
+# ── 3. 安裝 OpenClaw（最新版）────────────────────────────────────
 log "[3/7] 安裝 OpenClaw..."
-npm install -g openclaw --silent
+npm install -g openclaw@latest --silent
 OPENCLAW_VERSION=$(openclaw --version 2>/dev/null || echo "installed")
 log "  OpenClaw $OPENCLAW_VERSION"
 
-# ── 4. 寫入設定檔 openclaw.json ────────────────────────────────
-log "[4/7] 寫入 OpenClaw 設定..."
-mkdir -p /etc/openclaw /var/log/openclaw
+# ── 4. 建立 openclaw 系統用戶 ──────────────────────────────────
+log "[4/7] 設定用戶與目錄..."
+useradd --system --create-home --shell /bin/bash openclaw 2>/dev/null || true
+OPENCLAW_HOME="/home/openclaw"
+OPENCLAW_CONFIG_DIR="$OPENCLAW_HOME/.openclaw"
+mkdir -p "$OPENCLAW_CONFIG_DIR" /var/log/openclaw
 
-# 建立主設定檔（敏感資訊不寫入 log，使用獨立的檔案）
-cat > /etc/openclaw/openclaw.json << 'OPENCLAW_CONFIG'
+# ── 5. 寫入 openclaw.json ──────────────────────────────────────
+log "[5/7] 寫入 OpenClaw 設定..."
+# Gateway 預設 Port: 18789（官方預設值）
+# gateway.mode 需設為 server 才允許遠端連線
+cat > "$OPENCLAW_CONFIG_DIR/openclaw.json" << 'OPENCLAW_CONFIG'
 {
   "gateway": {
-    "port": 8080,
+    "mode": "server",
+    "port": 18789,
     "host": "0.0.0.0",
     "token": "{{ login_token }}",
     "maxTokens": {{ max_tokens }},
@@ -72,54 +87,59 @@ cat > /etc/openclaw/openclaw.json << 'OPENCLAW_CONFIG'
 }
 OPENCLAW_CONFIG
 
-chmod 600 /etc/openclaw/openclaw.json
-log "  openclaw.json 寫入完成"
+chown -R openclaw:openclaw "$OPENCLAW_HOME" /var/log/openclaw
+chmod 600 "$OPENCLAW_CONFIG_DIR/openclaw.json"
+log "  openclaw.json 寫入完成（Port: 18789）"
 
-# ── 5. 建立 systemd 服務（核心穩定性）─────────────────────────
-log "[5/7] 建立 systemd 服務..."
+# ── 6. 建立 systemd 服務 ────────────────────────────────────────
+log "[6/7] 建立 systemd 服務..."
 
-cat > /etc/systemd/system/openclaw.service << 'SYSTEMD_UNIT'
+# openclaw onboard --install-daemon 是官方推薦的安裝方式
+# 它會自動建立 systemd unit 並設定開機啟動
+# 以 openclaw 用戶身份執行
+sudo -u openclaw openclaw onboard --install-daemon 2>/dev/null || {
+  log "  onboard 指令不支援，改用手動 systemd unit..."
+
+  # 備援方案：手動建立 systemd unit
+  OPENCLAW_BIN=$(which openclaw)
+  cat > /etc/systemd/system/openclaw.service << SYSTEMD_UNIT
 [Unit]
 Description=OpenClaw Gateway Service
-Documentation=https://openclaw.io
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/openclaw gateway start --config /etc/openclaw/openclaw.json --no-daemon
-ExecReload=/bin/kill -HUP $MAINPID
+User=openclaw
+WorkingDirectory=$OPENCLAW_HOME
+ExecStart=$OPENCLAW_BIN gateway start --config $OPENCLAW_CONFIG_DIR/openclaw.json --no-daemon
+ExecReload=/bin/kill -HUP \$MAINPID
 KillMode=mixed
 KillSignal=SIGTERM
 TimeoutStopSec=30
 
-# 自動重啟設定：任何錯誤都重啟，最多每 10 秒重啟一次
 Restart=always
 RestartSec=10
 StartLimitInterval=120
 StartLimitBurst=5
 
-# 資源與安全限制
-User=openclaw
-Group=openclaw
-WorkingDirectory=/etc/openclaw
 StandardOutput=append:/var/log/openclaw/gateway.log
 StandardError=append:/var/log/openclaw/error.log
 
-# 系統保護
 NoNewPrivileges=true
-ProtectSystem=full
 PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target
 SYSTEMD_UNIT
 
-# 建立專屬的系統用戶（非 root 執行，更安全）
-useradd --system --no-create-home --shell /usr/sbin/nologin openclaw 2>/dev/null || true
-chown -R openclaw:openclaw /etc/openclaw /var/log/openclaw
+  systemctl daemon-reload
+  systemctl enable openclaw
+}
 
-# 設定 log rotation（避免日誌爆磁碟）
+log "  systemd 服務設定完成（Restart=always，開機自動啟動）"
+
+# Log rotation（避免日誌爆磁碟）
 cat > /etc/logrotate.d/openclaw << 'LOGROTATE_CONF'
 /var/log/openclaw/*.log {
     daily
@@ -134,21 +154,16 @@ cat > /etc/logrotate.d/openclaw << 'LOGROTATE_CONF'
 }
 LOGROTATE_CONF
 
-systemctl daemon-reload
-systemctl enable openclaw
-log "  systemd 服務已建立並設定為開機自動啟動"
+# ── 7. 防火牆 ─────────────────────────────────────────────────
+log "[7/7] 防火牆與啟動..."
 
-# ── 6. 防火牆設定 ───────────────────────────────────────────────
-log "[6/7] 設定防火牆與 fail2ban..."
-
-# UFW
 ufw default deny incoming
 ufw default allow outgoing
 ufw allow 22/tcp    comment "SSH"
-ufw allow 8080/tcp  comment "OpenClaw Gateway"
+ufw allow 18789/tcp comment "OpenClaw Gateway"  # 官方預設 Port
 ufw --force enable
 
-# fail2ban（防止 SSH 暴力破解）
+# fail2ban
 cat > /etc/fail2ban/jail.local << 'FAIL2BAN_CONF'
 [DEFAULT]
 bantime  = 3600
@@ -157,50 +172,40 @@ maxretry = 5
 
 [sshd]
 enabled = true
-port    = 22
 FAIL2BAN_CONF
 
 systemctl enable fail2ban
 systemctl restart fail2ban
-log "  防火牆與 fail2ban 設定完成"
 
-# ── 7. 啟動 OpenClaw 並確認健康狀態 ────────────────────────────
-log "[7/7] 啟動 OpenClaw..."
-systemctl start openclaw
+# ── 8. 啟動並確認健康 ─────────────────────────────────────────
+systemctl start openclaw 2>/dev/null || true
 
-# 健康檢查：最多等待 90 秒，每 5 秒確認一次
-HEALTH_CHECK_URL="http://127.0.0.1:8080/health"
+HEALTH_CHECK_URL="http://127.0.0.1:18789/health"
 RETRIES=18
 WAIT=5
 SUCCESS=false
 
 for i in $(seq 1 $RETRIES); do
-    if curl -sf "$HEALTH_CHECK_URL" > /dev/null 2>&1; then
-        SUCCESS=true
-        log "  健康檢查通過 (嘗試 $i/$RETRIES)"
-        break
-    fi
-
-    # 若服務已停止則立即放棄
-    if ! systemctl is-active --quiet openclaw; then
-        log "  服務異常停止，查看錯誤："
-        journalctl -u openclaw -n 20 --no-pager || true
-        break
-    fi
-
-    log "  等待服務就緒... ($i/$RETRIES)"
-    sleep $WAIT
+  if curl -sf "$HEALTH_CHECK_URL" > /dev/null 2>&1; then
+    SUCCESS=true
+    log "  健康檢查通過 (嘗試 $i/$RETRIES)"
+    break
+  fi
+  if ! systemctl is-active --quiet openclaw; then
+    log "  服務異常停止，查看錯誤："
+    journalctl -u openclaw -n 20 --no-pager || true
+    break
+  fi
+  log "  等待服務就緒... ($i/$RETRIES)"
+  sleep $WAIT
 done
 
 if [ "$SUCCESS" = true ]; then
-    log "====== OpenClaw Gateway 運行正常 ======"
-    # 寫入就緒旗標（供 provision 腳本輪詢確認）
-    echo "OPENCLAW_READY:$(date -u +%s)" > /var/log/openclaw-ready.flag
-    systemctl status openclaw --no-pager
+  echo "OPENCLAW_READY:$(date -u +%s)" > /var/log/openclaw-ready.flag
+  log "====== OpenClaw Gateway 運行正常（Port 18789）======"
 else
-    log "====== 警告：服務可能尚未完全就緒，請確認後再告知用戶 ======"
-    # 仍寫入旗標，但標記為警告狀態
-    echo "OPENCLAW_WARNING:$(date -u +%s)" > /var/log/openclaw-ready.flag
+  echo "OPENCLAW_WARNING:$(date -u +%s)" > /var/log/openclaw-ready.flag
+  log "====== 警告：服務可能尚未就緒，請手動確認 ======"
 fi
 
 log "====== 龍蝦雲 Init 完成 [$(date)] ======"

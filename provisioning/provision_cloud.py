@@ -201,7 +201,7 @@ def cmd_provision(args) -> None:
         "provider": result["provider"],
         "public_ip": result["public_ip"],
         "instance_id": result["instance_id"],
-        "openclaw_url": f"http://{result['public_ip']}:8080",
+        "openclaw_url": f"http://{result['public_ip']}:18789",
         "login_token": login_token,
         "platform": args.platform,
         "contact": args.contact,
@@ -294,8 +294,8 @@ def build_parser() -> argparse.ArgumentParser:
     provision_group = parser.add_argument_group("開通方案")
     provision_group.add_argument(
         "--plan",
-        choices=["starter", "basic", "pro", "business", "enterprise"],
-        help="方案等級 (starter/basic/pro/business/enterprise)"
+        choices=["starter", "standard", "pro", "business", "enterprise"],
+        help="方案等級 (starter/standard/pro/business/enterprise)"
     )
     provision_group.add_argument("--user-id", help="用戶唯一識別碼（訂單號/UID）")
     provision_group.add_argument("--ai-provider", choices=["openai", "gemini"],

@@ -182,7 +182,7 @@ class AWSProvider:
         )
         sg_id = sg["GroupId"]
 
-        # 開放 SSH (22) 與 OpenClaw Gateway (8080)
+        # 開放 SSH (22) 與 OpenClaw Gateway (18789，官方預設 Port)
         self.ec2_client.authorize_security_group_ingress(
             GroupId=sg_id,
             IpPermissions=[
@@ -194,10 +194,10 @@ class AWSProvider:
                 },
                 {
                     "IpProtocol": "tcp",
-                    "FromPort": 8080,
-                    "ToPort": 8080,
+                    "FromPort": 18789,
+                    "ToPort": 18789,
                     "IpRanges": [
-                        {"CidrIp": "0.0.0.0/0", "Description": "OpenClaw Gateway"}
+                        {"CidrIp": "0.0.0.0/0", "Description": "OpenClaw Gateway (official default)"}
                     ],
                 },
             ],

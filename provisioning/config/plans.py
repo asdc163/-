@@ -1,24 +1,25 @@
 """
 龍蝦雲 方案設定檔 (AWS 五大方案)
 ─────────────────────────────────────────────────────────────────
-差異化邏輯：
-  方案等級越高 → 更大的伺服器 → 可同時跑更多 OpenClaw Bot 實例
-  每個 Bot 實例佔用記憶體約 300~400MB，因此 RAM 決定了上限
+OpenClaw 硬體需求（官方文件）：
+  最低配備：2 GB RAM（1GB 體驗極差，不應提供）
+  建議配備：8~16 GB RAM（大多數日常用戶）
+  Node.js：>= 22（必須，22 以下無法啟動）
+  每個 openclaw process 約佔用 300~500 MB RAM
 
-  實例數量與 RAM 對應關係：
-    t3.micro   1GB  → 最多  1 個 Bot
-    t3.small   2GB  → 最多  3 個 Bot
-    t3.medium  4GB  → 最多  8 個 Bot
-    t3.large   8GB  → 最多 18 個 Bot
-    t3.xlarge 16GB  → 最多 40 個 Bot（無限制模式）
+方案差異化邏輯：
+  伺服器 RAM 決定可同時運行的 Bot 數量與服務品質
+  每方案對用戶而言是獨立的專屬 VPS，完全隔離
 
-  定價基準（AWS 東京 ap-northeast-1，On-Demand Linux，2024 Q1）：
-    t3.micro   $0.0116/hr ≈  $8.4/月
-    t3.small   $0.0232/hr ≈ $16.7/月
-    t3.medium  $0.0464/hr ≈ $33.4/月
-    t3.large   $0.0928/hr ≈ $66.8/月
-    t3.xlarge  $0.1856/hr ≈ $133.6/月
-    EBS gp3：$0.08/GB/月
+定價基準（AWS 東京 ap-northeast-1，On-Demand Linux 2024）：
+  t3.small   2vCPU  2GB  $0.0232/hr ≈ $16.7/月
+  t3.medium  2vCPU  4GB  $0.0464/hr ≈ $33.4/月
+  t3.large   2vCPU  8GB  $0.0928/hr ≈ $66.8/月
+  t3.xlarge  4vCPU 16GB  $0.1856/hr ≈ $133.6/月
+  t3.2xlarge 8vCPU 32GB  $0.3712/hr ≈ $271.0/月
+  EBS gp3：$0.08/GB/月
+
+目標毛利率：≥ 20%（含 AWS 偶發費用緩衝，建議設計在 25~35%）
 ─────────────────────────────────────────────────────────────────
 """
 
@@ -28,30 +29,32 @@ from typing import Dict
 
 @dataclass
 class PlanSpec:
-    # ── 基本資訊 ────────────────────────────────────────────────
+    # ── 基本資訊 ─────────────────────────────────────────────────
     plan_id: str
     name: str
-    price_usd: float          # 對外售價（月費 USD）
+    price_usd: float          # 對外月費（USD）
     aws_cost_est: float       # 預估 AWS 成本（月）
     description: str
-    use_case: str             # 目標客群
+    use_case: str
 
-    # ── AWS 伺服器規格 ───────────────────────────────────────────
-    aws_instance_type: str    # EC2 instance type
+    # ── AWS 規格 ─────────────────────────────────────────────────
+    aws_instance_type: str
     aws_vcpu: int
     aws_ram_gb: int
     disk_gb: int
 
-    # ── GCP 備援規格 ─────────────────────────────────────────────
+    # ── GCP 備援 ─────────────────────────────────────────────────
     gcp_machine_type: str
 
-    # ── OpenClaw Bot 功能上限（由伺服器 RAM 決定）───────────────
-    max_bot_instances: int    # 可同時運行的 Bot 數（-1 = 無限制）
-    max_concurrent_users: int # 每個 Bot 同時可接待的用戶數
-    context_window_k: int     # 每個 Bot 的上下文記憶容量（K tokens）
-    platforms_limit: int      # 可串接的通訊平台數（-1 = 無限制）
+    # ── OpenClaw 功能上限（由 RAM 決定）─────────────────────────
+    # openclaw 官方推薦每 instance 約 300~500 MB
+    # 扣除 OS 系統佔用（~500MB），剩餘 RAM 才能給 openclaw
+    max_bot_instances: int    # -1 = 無限制
+    max_concurrent_users: int
+    context_window_k: int     # 上下文記憶（K tokens）
+    platforms_limit: int      # 可串接通訊平台數，-1 = 無限制
 
-    # ── 計算屬性 ────────────────────────────────────────────────
+    # ── 計算屬性 ─────────────────────────────────────────────────
     @property
     def margin_pct(self) -> float:
         return round((self.price_usd - self.aws_cost_est) / self.price_usd * 100, 1)
@@ -62,7 +65,6 @@ class PlanSpec:
 
     @property
     def openclaw_max_tokens(self) -> int:
-        """Cloud-Init 腳本使用，轉換 K → 整數"""
         return self.context_window_k * 1024
 
     @property
@@ -80,113 +82,126 @@ class PlanSpec:
 
 # ──────────────────────────────────────────────────────────────
 # 五大方案
+# 注意：最低從 t3.small (2GB) 開始，1GB 體驗極差不提供
 # ──────────────────────────────────────────────────────────────
 
 PLANS: Dict[str, PlanSpec] = {
 
-    # ── 1. Starter：單機單Bot，試水溫 ────────────────────────────
+    # ── 1. Starter：最省，功能可用但緊湊 ──────────────────────────
+    # RAM 2GB：扣除 OS(~500MB)，openclaw 可用約 1.5GB
+    # 只夠跑 1 個 bot，上下文較小，適合個人試用
     "starter": PlanSpec(
         plan_id="starter",
         name="Starter",
-        price_usd=19.9,
-        aws_cost_est=9.95,        # t3.micro($8.35) + 20GB SSD($1.60)
-        description="入門版 · 單一 Bot · 個人試用",
-        use_case="想先試試看、學生、副業測試",
+        price_usd=24.9,
+        aws_cost_est=19.10,    # t3.small($16.70) + 30GB SSD($2.40)
+        description="入門版 · 2GB RAM · 單 Bot · 個人試用",
+        use_case="初次體驗、學生、副業測試、預算有限",
 
-        aws_instance_type="t3.micro",
-        aws_vcpu=2,
-        aws_ram_gb=1,
-        disk_gb=20,
-        gcp_machine_type="e2-micro",
-
-        max_bot_instances=1,
-        max_concurrent_users=5,
-        context_window_k=8,
-        platforms_limit=1,
-    ),
-
-    # ── 2. Basic：雙Bot，日常個人 ─────────────────────────────────
-    "basic": PlanSpec(
-        plan_id="basic",
-        name="Basic",
-        price_usd=35.9,
-        aws_cost_est=19.10,       # t3.small($16.70) + 30GB SSD($2.40)
-        description="基礎版 · 雙 Bot · 日常個人使用",
-        use_case="每天使用 AI 助理、同時跑 Telegram + LINE 兩個 Bot",
-
-        aws_instance_type="t3.small",
+        aws_instance_type="t3.small",   # 2 vCPU, 2 GB RAM（最低可用門檻）
         aws_vcpu=2,
         aws_ram_gb=2,
         disk_gb=30,
         gcp_machine_type="e2-small",
 
-        max_bot_instances=3,
-        max_concurrent_users=15,
+        max_bot_instances=1,
+        max_concurrent_users=5,
         context_window_k=16,
-        platforms_limit=2,
+        platforms_limit=1,
+        # 毛利率：(24.9 - 19.10) / 24.9 = 23.3% ✓
     ),
 
-    # ── 3. Pro：多Bot，重度用戶 ────────────────────────────────────
-    "pro": PlanSpec(
-        plan_id="pro",
-        name="Pro",
-        price_usd=69.9,
-        aws_cost_est=37.41,       # t3.medium($33.41) + 50GB SSD($4.00)
-        description="專業版 · 多 Bot · 工作流程整合",
-        use_case="自由工作者、多場景 AI 助理、需要 3 個以上通訊管道同時運作",
+    # ── 2. Standard：日常主力，體驗良好 ────────────────────────────
+    # RAM 4GB：openclaw 可用約 3.5GB，3 個 bot 流暢運行
+    "standard": PlanSpec(
+        plan_id="standard",
+        name="Standard",
+        price_usd=49.9,
+        aws_cost_est=37.41,    # t3.medium($33.41) + 50GB SSD($4.00)
+        description="標準版 · 4GB RAM · 多 Bot · 日常流暢使用",
+        use_case="每天使用 AI、同時跑 Telegram + LINE 兩個 Bot",
 
-        aws_instance_type="t3.medium",
+        aws_instance_type="t3.medium",  # 2 vCPU, 4 GB RAM
         aws_vcpu=2,
         aws_ram_gb=4,
         disk_gb=50,
         gcp_machine_type="e2-medium",
 
-        max_bot_instances=8,
-        max_concurrent_users=40,
+        max_bot_instances=3,
+        max_concurrent_users=15,
         context_window_k=32,
-        platforms_limit=3,
+        platforms_limit=2,
+        # 毛利率：(49.9 - 37.41) / 49.9 = 25.0% ✓
     ),
 
-    # ── 4. Business：高並發，小型團隊 ─────────────────────────────
-    "business": PlanSpec(
-        plan_id="business",
-        name="Business",
-        price_usd=129.9,
-        aws_cost_est=73.22,       # t3.large($66.82) + 80GB SSD($6.40)
-        description="商業版 · 高並發 Bot · 小型團隊 / 客服自動化",
-        use_case="3~10 人小團隊、多客服 Bot 並行、電商 / 客服自動化場景",
+    # ── 3. Pro：官方建議等級，重度用戶首選 ────────────────────────
+    # RAM 8GB：openclaw 官方「建議配備」起點
+    # 可流暢跑 8~10 個 bot，適合工作流整合
+    "pro": PlanSpec(
+        plan_id="pro",
+        name="Pro",
+        price_usd=99.9,
+        aws_cost_est=73.22,    # t3.large($66.82) + 80GB SSD($6.40)
+        description="專業版 · 8GB RAM · 官方建議等級 · 工作流整合",
+        use_case="自由工作者、多渠道 AI 助理、工作流自動化",
 
-        aws_instance_type="t3.large",
+        aws_instance_type="t3.large",   # 2 vCPU, 8 GB RAM（openclaw 建議起點）
         aws_vcpu=2,
         aws_ram_gb=8,
         disk_gb=80,
         gcp_machine_type="e2-standard-2",
 
-        max_bot_instances=18,
-        max_concurrent_users=100,
+        max_bot_instances=8,
+        max_concurrent_users=40,
         context_window_k=64,
         platforms_limit=5,
+        # 毛利率：(99.9 - 73.22) / 99.9 = 26.7% ✓
     ),
 
-    # ── 5. Enterprise：無限制，旗艦 ───────────────────────────────
-    "enterprise": PlanSpec(
-        plan_id="enterprise",
-        name="Enterprise",
-        price_usd=249.9,
-        aws_cost_est=141.63,      # t3.xlarge($133.63) + 100GB SSD($8.00)
-        description="旗艦版 · 無限 Bot · 企業級高流量",
-        use_case="中大型企業、高流量 AI 服務、需要最大資源與無限制功能",
+    # ── 4. Business：高性能，小型團隊 ─────────────────────────────
+    # RAM 16GB：openclaw 官方「建議配備」上限，全速運行
+    "business": PlanSpec(
+        plan_id="business",
+        name="Business",
+        price_usd=189.9,
+        aws_cost_est=141.63,   # t3.xlarge($133.63) + 100GB SSD($8.00)
+        description="商業版 · 16GB RAM · 高性能 · 小型團隊",
+        use_case="3~10 人小團隊、高頻客服機器人、電商自動化",
 
-        aws_instance_type="t3.xlarge",
+        aws_instance_type="t3.xlarge",  # 4 vCPU, 16 GB RAM
         aws_vcpu=4,
         aws_ram_gb=16,
         disk_gb=100,
         gcp_machine_type="e2-standard-4",
 
-        max_bot_instances=-1,       # 無限制
-        max_concurrent_users=-1,    # 無限制
+        max_bot_instances=18,
+        max_concurrent_users=100,
         context_window_k=128,
-        platforms_limit=-1,         # 無限制
+        platforms_limit=10,
+        # 毛利率：(189.9 - 141.63) / 189.9 = 25.4% ✓
+    ),
+
+    # ── 5. Enterprise：旗艦，無限制 ────────────────────────────────
+    # RAM 32GB：超越 openclaw 建議，應付最高強度需求
+    "enterprise": PlanSpec(
+        plan_id="enterprise",
+        name="Enterprise",
+        price_usd=369.9,
+        aws_cost_est=280.56,   # t3.2xlarge($270.96) + 120GB SSD($9.60)
+        description="旗艦版 · 32GB RAM · 無限制 · 企業高流量",
+        use_case="中大型企業、高流量 AI 服務、多部門自動化",
+
+        aws_instance_type="t3.2xlarge", # 8 vCPU, 32 GB RAM
+        aws_vcpu=8,
+        aws_ram_gb=32,
+        disk_gb=120,
+        gcp_machine_type="e2-standard-8",
+
+        max_bot_instances=-1,
+        max_concurrent_users=-1,
+        context_window_k=128,
+        platforms_limit=-1,
+        # 毛利率：(369.9 - 280.56) / 369.9 = 24.2% ✓
     ),
 }
 
@@ -200,29 +215,28 @@ def get_plan(plan_id: str) -> PlanSpec:
 
 
 def print_plans_table() -> None:
-    """在終端機印出所有方案比較表"""
-    divider = "─" * 82
+    divider = "─" * 88
     print(f"\n{divider}")
-    print(f"  {'龍蝦雲 五大方案一覽':^78}")
+    print(f"  {'龍蝦雲 五大方案（OpenClaw 官方建議：8~16GB RAM）':^84}")
     print(divider)
-    print(f"  {'方案':<12} {'售價/月':>8}  {'AWS成本':>8}  {'毛利率':>6}  {'規格':<18}  {'目標客群'}")
+    print(f"  {'方案':<12} {'售價/月':>8}  {'AWS成本':>8}  {'毛利率':>6}  {'規格':<20}  {'適用情境'}")
     print(divider)
     for plan in PLANS.values():
         spec = f"{plan.aws_vcpu}C{plan.aws_ram_gb}G/{plan.disk_gb}GB"
+        note = " ← 官方建議" if plan.aws_ram_gb in (8, 16) else ""
         print(
-            f"  {plan.name:<12} ${plan.price_usd:>6.1f}   ${plan.aws_cost_est:>6.2f}   "
-            f"{plan.margin_pct:>5.1f}%  {spec:<18}  {plan.use_case[:28]}"
+            f"  {plan.name:<12} ${plan.price_usd:>6.1f}   ${plan.aws_cost_est:>7.2f}   "
+            f"{plan.margin_pct:>5.1f}%  {spec:<20}  {plan.use_case[:22]}{note}"
         )
     print(divider)
-
-    print(f"\n  {'OpenClaw Bot 功能對照':^78}")
+    print(f"\n  {'OpenClaw Bot 功能對照':^84}")
     print(divider)
-    print(f"  {'方案':<12} {'Bot 數量':>10}  {'同時用戶':>10}  {'記憶上下文':>12}  {'通訊平台數'}")
+    print(f"  {'方案':<12} {'Bot 數量':>10}  {'同時用戶':>10}  {'記憶容量':>10}  {'通訊平台數'}")
     print(divider)
     for plan in PLANS.values():
         print(
             f"  {plan.name:<12} {plan.bots_display:>10}  {plan.users_display:>10}  "
-            f"{plan.context_window_k}K tokens{'':<4}  {plan.platforms_display}"
+            f"{plan.context_window_k}K tokens   {plan.platforms_display}"
         )
     print(divider)
     print()
