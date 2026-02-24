@@ -39,10 +39,8 @@ Key corrections vs. previous version
 from __future__ import annotations
 
 import asyncio
-import base64
 import datetime
 import getpass
-import hashlib
 import os
 import signal
 import sys
@@ -52,7 +50,6 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import yaml
-from cryptography.fernet import Fernet, InvalidToken
 
 from utils.aster_client import AsterClient
 from utils.fee_calculator import ArbOpportunity, FeeCalculator
@@ -70,18 +67,6 @@ log = get_logger(__name__)
 # Config loading
 # ---------------------------------------------------------------------------
 
-def _derive_fernet_key(password: str) -> bytes:
-    key_bytes = hashlib.sha256(password.encode()).digest()
-    return base64.urlsafe_b64encode(key_bytes)
-
-
-def _decrypt(encrypted: str, fernet: Fernet) -> str:
-    try:
-        return fernet.decrypt(encrypted.encode()).decode()
-    except InvalidToken:
-        sys.exit("[FATAL] Wrong decryption password or corrupted key.")
-
-
 def load_config() -> dict:
     with open(CONFIG_PATH) as f:
         cfg = yaml.safe_load(f)
@@ -98,10 +83,11 @@ def load_config() -> dict:
         return cfg
 
     # Live mode: decrypt all credentials
+    from utils._crypto import decrypt as _decrypt
+
     password = os.environ.get("ARB_KEY_PASSWORD") or getpass.getpass(
         "Key decryption password: "
     )
-    fernet = Fernet(_derive_fernet_key(password))
 
     hl_enc = cfg["hyperliquid"].get("private_key_encrypted", "")
     aster_key_enc = cfg["aster"].get("api_key_encrypted", "")
@@ -123,10 +109,13 @@ def load_config() -> dict:
             + "\nRun: python utils/key_encryptor.py"
         )
 
-    cfg["_hl_private_key"] = _decrypt(hl_enc, fernet)
-    cfg["_aster_api_key"] = _decrypt(aster_key_enc, fernet)
-    cfg["_aster_api_secret"] = _decrypt(aster_sec_enc, fernet)
-    cfg["_telegram_bot_token"] = _decrypt(tg_enc, fernet) if tg_enc else ""
+    try:
+        cfg["_hl_private_key"] = _decrypt(hl_enc, password)
+        cfg["_aster_api_key"] = _decrypt(aster_key_enc, password)
+        cfg["_aster_api_secret"] = _decrypt(aster_sec_enc, password)
+        cfg["_telegram_bot_token"] = _decrypt(tg_enc, password) if tg_enc else ""
+    except ValueError:
+        sys.exit("[FATAL] Wrong decryption password or corrupted key.")
 
     log.info("config_loaded_live_mode")
     return cfg

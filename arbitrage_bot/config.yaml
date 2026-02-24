@@ -20,10 +20,8 @@ hyperliquid:
   ws_url: "wss://api.hyperliquid.xyz/ws"
   # Funding settles every 1 hour at the top of the hour (UTC).
   funding_interval_hours: 1
-  # Run: python utils/key_encryptor.py to generate this value.
-  # Leave empty when running in simulation mode.
-  private_key_encrypted: ""
-  wallet_address: ""
+  private_key_encrypted: "6Be9G9UCX9hjrS-1pAx17AqoVsNzoZg4TTM03lDMeeuzx2MoPF-J2EfZGzn-IaCnum1VodM_1Wd1Cre3PGqumofxQthGOI0Qivyn4QOcS4u_WkOyBX6lyLJ7trq3DcZ0CZ-b322ZWx9Y32LQ_3yg1snCiVyrhtfZoSh1cVhw1_k="
+  wallet_address: "0x5d4D2179a7e022B83D870dC54C1883aA446a6E52"
 
 # ------------------------------------------------------------
 # Aster DEX — Binance-compatible REST API
@@ -36,22 +34,18 @@ aster:
   # Default funding interval for most perp pairs (BTC, ETH, SOL, etc.)
   # ASTER/USDT uses 4h — override via per-symbol fundingInfo if needed.
   default_funding_interval_hours: 8
-  # Run: python utils/key_encryptor.py  (it will prompt for API key+secret)
-  # Leave empty when running in simulation mode.
-  api_key_encrypted: ""
-  api_secret_encrypted: ""
+  api_key_encrypted: "T_qXzCsT-bbdbdleIbac33sx8JDPmnohlXNoXNjYHsu0jaZHFygBQ4J1bYsLG1q9Ga-l4di8RENMwJdqFwa2A4G2RHgKMNJ7DA-wi_tOhGF6_PuQ01mP8oviizM52zI1mS_TDOPgI_STzoA-MoYwacSs3oK7C03j7lrNXTQ21nM="
+  api_secret_encrypted: "4tV-KnjbaPPwsuDlS4WElNuQkF-9UEuNxzGxH2OgO9HQeu_in8njZE27R_XffDAhfwbAR-_sL4OArWxmtGjc8PeYQL1HS4WIdVkt5Y50WPPtamXQtF84mvsB7hAqo44U8zUefM1YtEoSiNMY_Y6TVt-3an1UcD33PMpiB6XHE5M="
 
 # ------------------------------------------------------------
 # Telegram — notifications on entry, settlement, and errors.
 # Set enabled: false to disable all notifications.
 # ------------------------------------------------------------
 telegram:
-  enabled: false
-  # Run: python utils/key_encryptor.py  (it will prompt for bot token)
-  bot_token_encrypted: ""
-  # Your personal Telegram chat_id or a group chat_id (not sensitive).
-  chat_id: ""
-  # Language for messages: "zh" (Traditional Chinese) or "en" (English)
+  enabled: true
+  bot_token_encrypted: "URJxFMvoFyWD4Ybp6pVG38UmdVaH4iQe5L8Kf5nCB0lM6po0d77iSQFhlUzu06vPgcLO6p_2TNfar31QX9yUIxoCmKIoXGMIbe2CTr2YCVG77oE0g5klJArnkdbimdsq"
+  # Tommy (@tommy_60229)
+  chat_id: "5039946319"
   language: "zh"
 
 # ------------------------------------------------------------

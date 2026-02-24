@@ -19,8 +19,8 @@ websockets>=12.0
 # --- Config / YAML parsing ---
 PyYAML>=6.0.1
 
-# --- Credential encryption (Fernet / AES-128-CBC) ---
-cryptography>=42.0.0
+# --- Credential encryption (AES-128-CBC + HMAC-SHA256) ---
+pycryptodome>=3.20.0
 
 # --- Structured logging ---
 structlog>=24.1.0

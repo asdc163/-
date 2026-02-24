@@ -19,29 +19,20 @@ Security model:
 """
 from __future__ import annotations
 
-import base64
 import getpass
-import hashlib
 import sys
 
 
-def _derive_fernet_key(password: str) -> bytes:
-    key_bytes = hashlib.sha256(password.encode()).digest()
-    return base64.urlsafe_b64encode(key_bytes)
-
-
 def encrypt_key(plaintext: str, password: str) -> str:
-    from cryptography.fernet import Fernet
-    fernet = Fernet(_derive_fernet_key(password))
-    return fernet.encrypt(plaintext.encode()).decode()
+    from utils._crypto import encrypt
+    return encrypt(plaintext, password)
 
 
 def decrypt_key(encrypted: str, password: str) -> str:
-    from cryptography.fernet import Fernet, InvalidToken
-    fernet = Fernet(_derive_fernet_key(password))
+    from utils._crypto import decrypt
     try:
-        return fernet.decrypt(encrypted.encode()).decode()
-    except InvalidToken:
+        return decrypt(encrypted, password)
+    except (ValueError, Exception):
         sys.exit("ERROR: Decryption failed — wrong password or corrupted ciphertext.")
 
 
