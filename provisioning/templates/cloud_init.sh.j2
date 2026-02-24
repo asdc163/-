@@ -1,0 +1,88 @@
+#!/bin/bash
+# =============================================================
+# 龍蝦雲 Cloud-Init 自動安裝腳本
+# 由 provision_cloud.py 動態產生，請勿手動修改
+# User ID : {{ user_id }}
+# Plan    : {{ plan_name }}
+# Platform: {{ platform }}
+# =============================================================
+set -e
+
+LOG="/var/log/openclaw-init.log"
+exec > >(tee -a $LOG) 2>&1
+
+echo "====== [$(date)] 龍蝦雲 Init 開始 ======"
+
+# ── 1. 系統更新 ─────────────────────────────────────────────
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y
+apt-get upgrade -y
+apt-get install -y curl wget git python3-pip ufw fail2ban
+
+# ── 2. 安裝 Node.js 20 LTS ──────────────────────────────────
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt-get install -y nodejs
+echo "Node $(node -v) / npm $(npm -v) 安裝完成"
+
+# ── 3. 安裝 OpenClaw ─────────────────────────────────────────
+npm install -g openclaw
+echo "OpenClaw $(openclaw --version 2>/dev/null || echo 'installed') 安裝完成"
+
+# ── 4. 建立設定目錄與 openclaw.json ──────────────────────────
+mkdir -p /etc/openclaw
+
+cat > /etc/openclaw/openclaw.json << 'OPENCLAW_CONFIG'
+{
+  "gateway": {
+    "port": 8080,
+    "host": "0.0.0.0",
+    "token": "{{ login_token }}",
+    "maxTokens": {{ max_tokens }}
+  },
+  "ai": {
+    "provider": "{{ ai_provider }}",
+    "apiKey": "{{ ai_api_key }}"
+  },
+  "messaging": {
+    "platform": "{{ platform }}",
+    "contact": "{{ contact }}"
+  },
+  "meta": {
+    "userId": "{{ user_id }}",
+    "plan": "{{ plan_name }}",
+    "provisionedAt": "{{ provisioned_at }}"
+  }
+}
+OPENCLAW_CONFIG
+
+chmod 600 /etc/openclaw/openclaw.json
+echo "openclaw.json 寫入完成"
+
+# ── 5. 防火牆設定 ─────────────────────────────────────────────
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow 22/tcp    # SSH
+ufw allow 8080/tcp  # OpenClaw Gateway
+ufw --force enable
+echo "防火牆設定完成"
+
+# ── 6. fail2ban (防暴力破解) ──────────────────────────────────
+systemctl enable fail2ban
+systemctl start fail2ban
+
+# ── 7. 啟動 OpenClaw Gateway ──────────────────────────────────
+openclaw gateway install --force --config /etc/openclaw/openclaw.json
+openclaw gateway start
+
+# 確認服務存活
+sleep 5
+if openclaw gateway status | grep -q "running"; then
+  echo "✅ OpenClaw Gateway 運行中"
+else
+  echo "⚠️  Gateway 啟動異常，嘗試重啟..."
+  openclaw gateway restart
+fi
+
+# ── 8. 寫入完成旗標 (供 provision 腳本輪詢確認) ───────────────
+echo "OPENCLAW_READY" > /var/log/openclaw-ready.flag
+echo "====== [$(date)] 龍蝦雲 Init 完成 ======"

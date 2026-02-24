@@ -1,0 +1,12 @@
+# 龍蝦雲 自動化開戶系統 依賴套件
+# pip install -r requirements.txt
+
+# ── 必裝（核心）──────────────────────────────────────────────
+jinja2>=3.1.0          # Cloud-Init 腳本模板渲染
+
+# ── AWS（擇一安裝）──────────────────────────────────────────
+boto3>=1.34.0          # AWS SDK (EC2, IAM, etc.)
+
+# ── GCP（擇一安裝）──────────────────────────────────────────
+google-cloud-compute>=1.14.0   # GCP Compute Engine SDK
+google-auth>=2.27.0            # GCP 認證
