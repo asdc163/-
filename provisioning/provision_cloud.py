@@ -64,22 +64,23 @@ TEMPLATES_DIR = Path(__file__).parent / "templates"
 
 def render_cloud_init(
     user_id: str,
-    plan_name: str,
+    plan: object,
     login_token: str,
-    max_tokens: int,
     ai_provider: str,
     ai_api_key: str,
     platform: str,
     contact: str,
 ) -> str:
-    """用 Jinja2 渲染 cloud_init.sh.j2，填入用戶參數"""
+    """用 Jinja2 渲染 cloud_init.sh.j2，填入用戶參數與方案限制"""
     env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
     template = env.get_template("cloud_init.sh.j2")
     return template.render(
         user_id=user_id,
-        plan_name=plan_name,
+        plan_name=plan.name,
         login_token=login_token,
-        max_tokens=max_tokens,
+        max_tokens=plan.openclaw_max_tokens,
+        max_bot_instances=plan.max_bot_instances if plan.max_bot_instances != -1 else 9999,
+        max_concurrent_users=plan.max_concurrent_users if plan.max_concurrent_users != -1 else 9999,
         ai_provider=ai_provider,
         ai_api_key=ai_api_key,
         platform=platform,
@@ -140,8 +141,13 @@ def cmd_provision(args) -> None:
 │  適用情境  : {plan.use_case}
 │  雲端      : {args.provider.upper()}  ─  {spec_info}
 │  硬碟      : {plan.disk_gb} GB SSD
-│  同時對話  : {plan.concurrent_display}  ｜  通訊平台: {plan.platforms_display}
-│  每日備份  : {"是" if plan.daily_backup else "否"}  ｜  優先支援: {"是" if plan.priority_support else "否"}
+├──────────────────────────────────────────────────┤
+│  OpenClaw Bot 配置
+│  Bot 數量  : {plan.bots_display} 個同時運行
+│  同時用戶  : {plan.users_display} 人
+│  記憶上下文: {plan.context_window_k}K tokens
+│  通訊平台  : {plan.platforms_display} 個
+├──────────────────────────────────────────────────┤
 │  AI 平台   : {args.ai_provider.upper()}  ─  {args.platform.upper()} / {args.contact}
 │  AWS 成本  : ~${plan.aws_cost_est}/月  ｜  毛利率: {plan.margin_pct}%  (+${plan.monthly_profit})
 └──────────────────────────────────────────────────┘
@@ -151,13 +157,15 @@ def cmd_provision(args) -> None:
     logger.info("渲染 Cloud-Init 腳本...")
     provider_name = args.provider
     spec_desc = plan.aws_instance_type if provider_name == "aws" else plan.gcp_machine_type
-    logger.info(f"規格: {spec_desc} | 硬碟: {plan.disk_gb}GB | 上下文: {plan.openclaw_max_tokens // 1024}K tokens")
+    logger.info(
+        f"規格: {spec_desc} | 硬碟: {plan.disk_gb}GB | "
+        f"Bot: {plan.bots_display} | 上下文: {plan.context_window_k}K tokens"
+    )
 
     cloud_init_script = render_cloud_init(
         user_id=args.user_id,
-        plan_name=plan.name,
+        plan=plan,
         login_token=login_token,
-        max_tokens=plan.openclaw_max_tokens,
         ai_provider=args.ai_provider,
         ai_api_key=args.ai_api_key,
         platform=args.platform,
@@ -197,8 +205,10 @@ def cmd_provision(args) -> None:
         "login_token": login_token,
         "platform": args.platform,
         "contact": args.contact,
-        "daily_backup": plan.daily_backup,
-        "priority_support": plan.priority_support,
+        "max_bot_instances": plan.bots_display,
+        "max_concurrent_users": plan.users_display,
+        "context_window_k": plan.context_window_k,
+        "platforms_limit": plan.platforms_display,
         "provisioned_at": datetime.now(timezone.utc).isoformat(),
         "note": "伺服器約需 60 秒完成 OpenClaw 安裝，請稍待後再連線",
     }
