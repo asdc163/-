@@ -1,38 +1,29 @@
 # ============================================================
-# Hyperliquid <> Aster Arbitrage Bot — Requirements
+# Hyperliquid × Aster Arbitrage Bot — Requirements
 # Python 3.11+
 # ============================================================
 
 # --- Hyperliquid official SDK ---
+# Provides Exchange (order placement) and Info (market data) clients.
 hyperliquid-python-sdk>=0.9.0
 
-# --- EVM / Web3 (Aster chain interaction) ---
-web3>=6.15.0
+# --- EVM account (HL uses EIP-712 wallet signing) ---
 eth-account>=0.11.0
 
-# --- Market data reference ---
-ccxt>=4.3.0
-
-# --- Config / validation ---
-pydantic>=2.6.0
-pydantic-settings>=2.2.0
-PyYAML>=6.0.1
-
-# --- Private key encryption ---
-cryptography>=42.0.0
-
-# --- Async HTTP / WebSocket ---
+# --- Async HTTP (Aster REST API + Telegram) ---
 aiohttp>=3.9.3
+
+# --- WebSocket (HL live data feed) ---
 websockets>=12.0
 
-# --- Retry logic ---
-tenacity>=8.2.3
+# --- Config / YAML parsing ---
+PyYAML>=6.0.1
+
+# --- Credential encryption (Fernet / AES-128-CBC) ---
+cryptography>=42.0.0
 
 # --- Structured logging ---
 structlog>=24.1.0
 
-# --- Env-var support ---
+# --- Env-var support (.env file loading) ---
 python-dotenv>=1.0.0
-
-# --- Numeric precision (avoid float drift on size alignment) ---
-# (stdlib decimal is used; no extra dep needed)

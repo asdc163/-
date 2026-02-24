@@ -1,262 +1,121 @@
 """
-Aster Perpetuals DEX client (EVM / BNB Chain).
+Aster Perpetuals REST API client.
 
-Architecture
-------------
-Aster is an on-chain perpetuals protocol.  We interact with it via:
-  1. web3.py  — read contract state, build & send transactions.
-  2. JSON-RPC polling (no native WS feed) — for funding rate & position data.
+Aster DEX uses a Binance-compatible REST API:
+  Base URL : https://fapi.asterdex.com
+  Auth     : X-MBX-APIKEY header + HMAC-SHA256 signature (same as Binance Futures)
 
-Because Aster does not have an official Python SDK (as of 2026), this module
-implements a generic EVM perp client.  You MUST update:
-  - ASTER_ROUTER_ABI  (the actual contract ABI from Aster's docs/GitHub)
-  - Contract addresses in config.yaml
+Public endpoints (no auth):
+  GET /fapi/v3/premiumIndex  → mark price, funding rate, nextFundingTime
+  GET /fapi/v3/exchangeInfo  → symbol specs (lot size, min notional)
+  GET /fapi/v3/ticker/price  → latest price
 
-2026 Yield-Bearing Margin Support
-----------------------------------
-If the margin asset is asBNB or USDF the contract may require:
-  - ERC-20 `approve()` before deposit.
-  - A separate vault deposit call before opening a position.
-The `_ensure_margin_approved()` helper handles this.
+Private endpoints (API key + signature required):
+  POST /fapi/v3/order        → place order
+  GET  /fapi/v3/positionRisk → current positions
+  GET  /fapi/v3/account      → wallet balance
 
-Gas Guard
----------
-Before every write transaction we check current base-fee.  If it exceeds
-`max_gas_gwei` (config) the transaction is rejected and the caller receives
-a GasLimitExceededError.
+In simulation mode (no API key), only public endpoints are called.
+
+Key facts from official docs:
+  - Most pairs (BTC, ETH, SOL, BNB) settle every 8 hours: 00:00, 08:00, 16:00 UTC
+  - ASTER/USDT settles every 4 hours (recently changed from 1h)
+  - Taker: 0.040%  Maker: 0.005%  (VIP 1 / default)
+  - nextFundingTime is returned in every premiumIndex response (ms UTC)
+  - The API imposes a 15-second timing deviation — positions opened at exactly
+    the settlement second may be charged for the PREVIOUS period. This is why
+    we enter 15 seconds BEFORE the settlement, not at the settlement second.
 """
 from __future__ import annotations
 
 import asyncio
-import json
+import hashlib
+import hmac
 import time
 from decimal import Decimal
-from typing import Any, Dict, Optional
+from typing import Dict, List, Optional
 
-from eth_account import Account
-from eth_account.signers.local import LocalAccount
-from web3 import AsyncWeb3, Web3
-from web3.exceptions import ContractLogicError
-from web3.middleware import ExtraDataToPOAMiddleware
+import aiohttp
 
 from .fee_calculator import ExchangeSizeParams
 from .logger import get_logger
 
 log = get_logger(__name__)
 
+ASTER_API_URL = "https://fapi.asterdex.com"
 
-class GasLimitExceededError(Exception):
-    """Raised when the network gas price exceeds the configured threshold."""
-
-
-# ---------------------------------------------------------------------------
-# Minimal ABI — covers the functions we actually call.
-# Replace with the full Aster router ABI from their official repository.
-# ---------------------------------------------------------------------------
-ASTER_ROUTER_ABI = json.loads("""
-[
-  {
-    "name": "openPosition",
-    "type": "function",
-    "stateMutability": "nonpayable",
-    "inputs": [
-      {"name": "_indexToken",  "type": "address"},
-      {"name": "_collateralToken", "type": "address"},
-      {"name": "_isLong",      "type": "bool"},
-      {"name": "_collateralAmount", "type": "uint256"},
-      {"name": "_leverage",    "type": "uint256"}
-    ],
-    "outputs": [{"name": "positionKey", "type": "bytes32"}]
-  },
-  {
-    "name": "closePosition",
-    "type": "function",
-    "stateMutability": "nonpayable",
-    "inputs": [
-      {"name": "_indexToken",      "type": "address"},
-      {"name": "_collateralToken", "type": "address"},
-      {"name": "_isLong",          "type": "bool"},
-      {"name": "_sizeDelta",       "type": "uint256"}
-    ],
-    "outputs": []
-  },
-  {
-    "name": "getPosition",
-    "type": "function",
-    "stateMutability": "view",
-    "inputs": [
-      {"name": "_account",         "type": "address"},
-      {"name": "_indexToken",      "type": "address"},
-      {"name": "_collateralToken", "type": "address"},
-      {"name": "_isLong",          "type": "bool"}
-    ],
-    "outputs": [
-      {"name": "size",           "type": "uint256"},
-      {"name": "collateral",     "type": "uint256"},
-      {"name": "averagePrice",   "type": "uint256"},
-      {"name": "entryFundingRate","type": "uint256"},
-      {"name": "hasProfit",      "type": "bool"},
-      {"name": "realisedPnl",    "type": "int256"}
-    ]
-  },
-  {
-    "name": "getFundingRate",
-    "type": "function",
-    "stateMutability": "view",
-    "inputs": [
-      {"name": "_indexToken", "type": "address"}
-    ],
-    "outputs": [
-      {"name": "longFundingRate",  "type": "int256"},
-      {"name": "shortFundingRate", "type": "int256"}
-    ]
-  },
-  {
-    "name": "getMaxPrice",
-    "type": "function",
-    "stateMutability": "view",
-    "inputs": [{"name": "_token", "type": "address"}],
-    "outputs": [{"name": "", "type": "uint256"}]
-  },
-  {
-    "name": "getMinPrice",
-    "type": "function",
-    "stateMutability": "view",
-    "inputs": [{"name": "_token", "type": "address"}],
-    "outputs": [{"name": "", "type": "uint256"}]
-  }
-]
-""")
-
-ERC20_ABI = json.loads("""
-[
-  {
-    "name": "approve",
-    "type": "function",
-    "stateMutability": "nonpayable",
-    "inputs": [
-      {"name": "spender", "type": "address"},
-      {"name": "amount",  "type": "uint256"}
-    ],
-    "outputs": [{"name": "", "type": "bool"}]
-  },
-  {
-    "name": "allowance",
-    "type": "function",
-    "stateMutability": "view",
-    "inputs": [
-      {"name": "owner",   "type": "address"},
-      {"name": "spender", "type": "address"}
-    ],
-    "outputs": [{"name": "", "type": "uint256"}]
-  },
-  {
-    "name": "decimals",
-    "type": "function",
-    "stateMutability": "view",
-    "inputs": [],
-    "outputs": [{"name": "", "type": "uint8"}]
-  },
-  {
-    "name": "balanceOf",
-    "type": "function",
-    "stateMutability": "view",
-    "inputs": [{"name": "account", "type": "address"}],
-    "outputs": [{"name": "", "type": "uint256"}]
-  }
-]
-""")
-
-# Precision used by most EVM token contracts
-WEI_PER_USDC = Decimal("1000000")        # USDC = 6 decimals
-PRICE_PRECISION = Decimal("10") ** 30    # Aster price precision (typical GMX-style)
+# How often to refresh funding rates / prices via REST (seconds).
+_POLL_INTERVAL = 10
 
 
 class AsterClient:
     """
-    Async client for Aster perpetuals on BNB Chain.
+    Async client for Aster perpetuals (Pro Mode — CLOB order book).
 
-    Usage:
+    Usage (live):
         client = AsterClient(config)
-        await client.start(token_map)           # {symbol: token_address}
-        rate = client.funding_rates["BTC"]      # live funding rate
+        await client.start(["BTC", "ETH"])
+        rate   = client.get_funding_rate("BTC")    # Decimal, e.g. 0.0001
+        price  = client.get_mid_price("BTC")       # Decimal, e.g. 95000
+        next_t = client.get_next_funding_time("BTC")  # int, ms UTC
         await client.stop()
+
+    Usage (simulation — no API key needed):
+        Same as above; place_order / close_position raise NotImplementedError
+        in sim mode, which is caught and ignored by the bot.
     """
 
     def __init__(self, config: dict) -> None:
         self._cfg = config
-        aster_cfg = config["aster"]
+        aster_cfg = config.get("aster", {})
         trading = config.get("trading", {})
 
+        self._api_url: str = aster_cfg.get("api_url", ASTER_API_URL).rstrip("/")
+        self._api_key: str = config.get("_aster_api_key", "")
+        self._api_secret: str = config.get("_aster_api_secret", "")
+        self._sim_mode: bool = config.get("simulation", {}).get("enabled", True)
+
         self.leverage: int = int(trading.get("leverage", 3))
-        self.max_gas_gwei: int = int(config.get("risk", {}).get("max_gas_gwei", 30))
-        self.max_gas_open: int = int(config.get("risk", {}).get("max_gas_gwei_open", 20))
-        self.maker_timeout: float = float(trading.get("maker_timeout_seconds", 5))
 
-        # Web3 setup
-        self._w3 = Web3(Web3.HTTPProvider(aster_cfg["rpc_url"]))
-        self._w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
-
-        private_key: str = config["_aster_private_key"]
-        self._account: LocalAccount = Account.from_key(private_key)
-        self._wallet = self._account.address
-
-        self._router = self._w3.eth.contract(
-            address=Web3.to_checksum_address(aster_cfg["router_contract"]),
-            abi=ASTER_ROUTER_ABI,
-        )
-
-        margin_addr = aster_cfg.get("margin_asset_address", "")
-        self._margin_token = self._w3.eth.contract(
-            address=Web3.to_checksum_address(margin_addr),
-            abi=ERC20_ABI,
-        ) if margin_addr else None
-        self._margin_asset = aster_cfg.get("margin_asset", "USDF")
-        self._margin_decimals: int = 6  # populated in start()
-
-        # Live data (populated by polling loop)
+        # Live data — keyed by uppercase symbol (no USDT suffix), e.g. "BTC"
         self.funding_rates: Dict[str, Decimal] = {}
         self.mid_prices: Dict[str, Decimal] = {}
-
-        # token_address → symbol mapping (set in start())
-        self._token_map: Dict[str, str] = {}   # symbol → address
+        self.next_funding_times: Dict[str, int] = {}  # ms UTC timestamp
         self._size_params: Dict[str, ExchangeSizeParams] = {}
 
+        self._session: Optional[aiohttp.ClientSession] = None
+        self._symbols: List[str] = []
         self._running = False
 
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
 
-    async def start(self, token_map: Dict[str, str]) -> None:
-        """
-        token_map: {"BTC": "0x...", "ETH": "0x...", ...}
-        Launches the background polling loop.
-        """
-        self._token_map = {k.upper(): Web3.to_checksum_address(v) for k, v in token_map.items()}
+    async def start(self, symbols: List[str]) -> None:
+        """Connect and start polling. symbols = ["BTC", "ETH", ...]"""
+        self._symbols = [s.upper() for s in symbols]
+        self._session = aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=10),
+        )
         self._running = True
 
-        # Fetch margin token decimals
-        if self._margin_token:
-            self._margin_decimals = self._margin_token.functions.decimals().call()
+        # Fetch symbol specs from exchangeInfo (lot sizes, min notional)
+        await self._fetch_exchange_info()
 
-        # Populate size params (conservative defaults; update per Aster docs)
-        for sym in self._token_map:
-            self._size_params[sym] = ExchangeSizeParams(
-                symbol=sym,
-                lot_size=Decimal("0.001"),         # 3 decimal places
-                min_notional_usdc=Decimal("10"),
-                max_leverage=50,
-            )
+        # Do an immediate poll so data is available before the bot runs
+        await self._refresh_all()
 
+        # Start background polling loop
         asyncio.create_task(self._poll_loop())
-        log.info("aster_client_started", symbols=list(self._token_map.keys()))
+        log.info("aster_client_started", symbols=self._symbols, sim=self._sim_mode)
 
     async def stop(self) -> None:
         self._running = False
+        if self._session and not self._session.closed:
+            await self._session.close()
 
     # ------------------------------------------------------------------
-    # Background polling loop (replaces WebSocket — Aster uses RPC calls)
+    # Background polling loop
     # ------------------------------------------------------------------
 
     async def _poll_loop(self) -> None:
@@ -264,239 +123,244 @@ class AsterClient:
             try:
                 await self._refresh_all()
             except Exception as exc:
-                log.error("aster_poll_error", error=str(exc))
-            await asyncio.sleep(5)  # Poll every 5 seconds
+                log.warning("aster_poll_error", error=str(exc))
+            await asyncio.sleep(_POLL_INTERVAL)
 
     async def _refresh_all(self) -> None:
-        """Update funding rates and prices for all tracked tokens."""
-        loop = asyncio.get_event_loop()
-        for sym, addr in self._token_map.items():
+        """Refresh funding rates, mark prices, and next settlement times."""
+        for symbol in self._symbols:
             try:
-                # Prices (max = ask, min = bid; mid = average)
-                max_p, min_p = await asyncio.gather(
-                    loop.run_in_executor(
-                        None, lambda a=addr: self._router.functions.getMaxPrice(a).call()
-                    ),
-                    loop.run_in_executor(
-                        None, lambda a=addr: self._router.functions.getMinPrice(a).call()
-                    ),
+                data = await self._get(
+                    "/fapi/v3/premiumIndex",
+                    params={"symbol": f"{symbol}USDT"},
                 )
-                mid = (Decimal(str(max_p)) + Decimal(str(min_p))) / (2 * PRICE_PRECISION)
-                self.mid_prices[sym] = mid
+                if not isinstance(data, dict):
+                    continue
 
-                # Funding rates
-                long_rate, short_rate = await loop.run_in_executor(
-                    None,
-                    lambda a=addr: self._router.functions.getFundingRate(a).call(),
-                )
-                # Store funding rate as fraction per funding period.
-                # Aster returns signed int256 (positive = longs pay shorts).
-                # Normalize to the same unit as HL (per-period fraction).
-                self.funding_rates[sym] = Decimal(str(long_rate)) / Decimal("1e18")
+                funding_rate = data.get("lastFundingRate", "0")
+                mark_price = data.get("markPrice", "0")
+                next_t = data.get("nextFundingTime", 0)
+
+                self.funding_rates[symbol] = Decimal(str(funding_rate))
+                self.mid_prices[symbol] = Decimal(str(mark_price))
+                self.next_funding_times[symbol] = int(next_t)
 
             except Exception as exc:
-                log.warning("aster_refresh_failed", symbol=sym, error=str(exc))
+                log.warning("aster_refresh_symbol_failed", symbol=symbol, error=str(exc))
 
-    # ------------------------------------------------------------------
-    # Gas check
-    # ------------------------------------------------------------------
+    async def _fetch_exchange_info(self) -> None:
+        """Fetch symbol lot sizes and minimum notional from exchangeInfo."""
+        try:
+            data = await self._get("/fapi/v3/exchangeInfo")
+            if not isinstance(data, dict):
+                return
 
-    def _current_gas_gwei(self) -> Decimal:
-        base_fee = self._w3.eth.gas_price  # in wei
-        return Decimal(str(base_fee)) / Decimal("1e9")
+            for sym_info in data.get("symbols", []):
+                # Aster uses BTCUSDT format; extract base symbol
+                raw_symbol: str = sym_info.get("symbol", "")
+                if not raw_symbol.endswith("USDT"):
+                    continue
+                base = raw_symbol[:-4].upper()  # "BTCUSDT" → "BTC"
+                if base not in self._symbols:
+                    continue
 
-    def _check_gas(self, threshold_gwei: int) -> None:
-        current = self._current_gas_gwei()
-        if current > threshold_gwei:
-            raise GasLimitExceededError(
-                f"Gas {float(current):.1f} Gwei exceeds limit {threshold_gwei} Gwei"
-            )
+                lot_size = Decimal("0.001")
+                min_notional = Decimal("5")
 
-    # ------------------------------------------------------------------
-    # Margin approval helper (for yield-bearing asBNB / USDF)
-    # ------------------------------------------------------------------
+                for f in sym_info.get("filters", []):
+                    if f.get("filterType") == "LOT_SIZE":
+                        lot_size = Decimal(str(f.get("stepSize", "0.001")))
+                    elif f.get("filterType") == "MIN_NOTIONAL":
+                        min_notional = Decimal(str(f.get("minNotional", "5")))
 
-    async def _ensure_margin_approved(self, amount_wei: int) -> None:
-        """Ensure the router has sufficient allowance for the margin token."""
-        if not self._margin_token:
-            return
-        loop = asyncio.get_event_loop()
-        current = await loop.run_in_executor(
-            None,
-            lambda: self._margin_token.functions.allowance(
-                self._wallet, self._router.address
-            ).call(),
-        )
-        if current < amount_wei:
-            log.info("aster_approving_margin_token", asset=self._margin_asset, amount=amount_wei)
-            await self._send_tx(
-                self._margin_token.functions.approve(
-                    self._router.address, 2**256 - 1  # max approve
+                self._size_params[base] = ExchangeSizeParams(
+                    symbol=base,
+                    lot_size=lot_size,
+                    min_notional_usdc=min_notional,
+                    max_leverage=100,
                 )
-            )
+
+            log.info("aster_exchange_info_fetched", symbols=list(self._size_params.keys()))
+
+        except Exception as exc:
+            log.warning("aster_exchange_info_failed", error=str(exc))
+            # Fall back to conservative defaults for whitelisted symbols
+            for sym in self._symbols:
+                if sym not in self._size_params:
+                    self._size_params[sym] = ExchangeSizeParams(
+                        symbol=sym,
+                        lot_size=Decimal("0.001"),
+                        min_notional_usdc=Decimal("5"),
+                        max_leverage=100,
+                    )
 
     # ------------------------------------------------------------------
-    # Order placement
+    # Order placement (live mode only)
     # ------------------------------------------------------------------
 
     async def place_order(
         self,
         symbol: str,
         is_long: bool,
-        size_usdc: Decimal,
+        size: Decimal,
         reduce_only: bool = False,
     ) -> dict:
         """
-        Open (or close) a position on Aster.
+        Place a MARKET order on Aster.
 
-        Note: Aster uses a collateral + leverage model.
-          collateral = size_usdc / leverage
-        The `reduce_only` flag triggers closePosition instead.
+        In the T-15s entry window we need guaranteed fill speed, so we always
+        use MARKET orders rather than attempting Post-Only limits.
+
+        Args:
+            symbol:      Base symbol, e.g. "BTC"
+            is_long:     True = BUY, False = SELL
+            size:        Order quantity in base asset (e.g. 0.001 BTC)
+            reduce_only: True when closing an existing position
+
+        Returns:
+            dict with order result from the Aster API
         """
-        self._check_gas(self.max_gas_open if not reduce_only else self.max_gas_gwei)
+        if self._sim_mode:
+            raise NotImplementedError("place_order called in simulation mode")
 
-        token_addr = self._token_map.get(symbol.upper())
-        if not token_addr:
-            raise ValueError(f"Symbol {symbol} not in token_map")
+        side = "BUY" if is_long else "SELL"
+        params: dict = {
+            "symbol": f"{symbol.upper()}USDT",
+            "side": side,
+            "type": "MARKET",
+            "quantity": str(size),
+        }
+        if reduce_only:
+            params["reduceOnly"] = "true"
 
-        margin_addr = self._margin_token.address if self._margin_token else token_addr
-        collateral_amount_decimal = size_usdc / Decimal(str(self.leverage))
-        collateral_wei = int(collateral_amount_decimal * Decimal("10") ** self._margin_decimals)
-        size_wei = int(size_usdc * Decimal("10") ** self._margin_decimals)
+        log.info(
+            "aster_placing_order",
+            symbol=symbol,
+            side=side,
+            size=float(size),
+            reduce_only=reduce_only,
+        )
+        result = await self._post("/fapi/v3/order", params)
+        log.info("aster_order_placed", symbol=symbol, result=result)
+        return result
 
-        if not reduce_only:
-            await self._ensure_margin_approved(collateral_wei)
-            log.info(
-                "aster_opening_position",
-                symbol=symbol,
-                is_long=is_long,
-                collateral_usdc=float(collateral_amount_decimal),
-                leverage=self.leverage,
-            )
-            tx_receipt = await self._send_tx(
-                self._router.functions.openPosition(
-                    token_addr,
-                    margin_addr,
-                    is_long,
-                    collateral_wei,
-                    self.leverage,
-                )
-            )
-        else:
-            log.info("aster_closing_position", symbol=symbol, is_long=is_long)
-            tx_receipt = await self._send_tx(
-                self._router.functions.closePosition(
-                    token_addr,
-                    margin_addr,
-                    is_long,
-                    size_wei,
-                )
-            )
-
-        return {"tx_hash": tx_receipt["transactionHash"].hex(), "receipt": tx_receipt}
-
-    async def close_position(self, symbol: str, is_long: bool, size_usdc: Decimal) -> dict:
-        return await self.place_order(symbol, is_long, size_usdc, reduce_only=True)
+    async def close_position(self, symbol: str, is_long: bool, size: Decimal) -> dict:
+        """Close an open position (reverses the direction)."""
+        # To close a LONG we SELL; to close a SHORT we BUY
+        close_is_long = not is_long
+        return await self.place_order(symbol, close_is_long, size, reduce_only=True)
 
     # ------------------------------------------------------------------
-    # Position & margin queries
+    # Account queries (live mode only)
     # ------------------------------------------------------------------
 
-    async def get_position(self, symbol: str, is_long: bool) -> Optional[dict]:
-        """Return position data dict or None if no position exists."""
-        token_addr = self._token_map.get(symbol.upper())
-        if not token_addr:
-            return None
-        margin_addr = self._margin_token.address if self._margin_token else token_addr
-        loop = asyncio.get_event_loop()
-        try:
-            result = await loop.run_in_executor(
-                None,
-                lambda: self._router.functions.getPosition(
-                    self._wallet, token_addr, margin_addr, is_long
-                ).call(),
-            )
-            size, collateral, avg_price, entry_funding, has_profit, pnl = result
-            return {
-                "size": Decimal(str(size)) / (Decimal("10") ** self._margin_decimals),
-                "collateral": Decimal(str(collateral)) / (Decimal("10") ** self._margin_decimals),
-                "avg_price": Decimal(str(avg_price)) / PRICE_PRECISION,
-                "has_profit": has_profit,
-                "pnl": Decimal(str(pnl)) / (Decimal("10") ** self._margin_decimals),
-            }
-        except (ContractLogicError, Exception) as exc:
-            log.warning("aster_get_position_failed", symbol=symbol, error=str(exc))
+    async def get_position(self, symbol: str) -> Optional[dict]:
+        """Return current position for `symbol` or None if flat."""
+        if self._sim_mode:
             return None
 
-    async def get_margin_ratio(self, symbol: str, is_long: bool) -> Optional[Decimal]:
-        """
-        Approximate margin ratio = collateral / size.
-        A lower value means more leveraged / closer to liquidation.
-        """
-        pos = await self.get_position(symbol, is_long)
-        if not pos or pos["size"] == 0:
+        data = await self._get(
+            "/fapi/v3/positionRisk",
+            params={"symbol": f"{symbol.upper()}USDT"},
+            signed=True,
+        )
+        if not isinstance(data, list) or not data:
             return None
-        return pos["collateral"] / pos["size"]
 
-    async def get_margin_asset_apy(self) -> Decimal:
-        """
-        Fetch the base yield of the margin asset (asBNB / USDF).
-        In production this would call the Aster vault/staking contract.
-        Falls back to the config-provided value.
-        """
-        cfg_apy = self._cfg["aster"].get("margin_asset_base_apy", -1)
-        if cfg_apy != -1:
-            return Decimal(str(cfg_apy))
-        # Placeholder: implement on-chain call to yield vault when ABI is available
-        log.warning("aster_margin_apy_not_configured_using_zero")
+        pos = data[0]
+        amt = Decimal(str(pos.get("positionAmt", "0")))
+        if amt == 0:
+            return None
+
+        return {
+            "size": abs(amt),
+            "is_long": amt > 0,
+            "entry_price": Decimal(str(pos.get("entryPrice", "0"))),
+            "mark_price": Decimal(str(pos.get("markPrice", "0"))),
+            "unrealized_pnl": Decimal(str(pos.get("unRealizedProfit", "0"))),
+            "margin": Decimal(str(pos.get("isolatedMargin", "0"))),
+        }
+
+    async def get_balance(self) -> Decimal:
+        """Return total USDT wallet balance."""
+        if self._sim_mode:
+            return Decimal(str(self._cfg["trading"].get("total_capital_usdc", 166))) / 2
+
+        data = await self._get("/fapi/v3/account", signed=True)
+        if isinstance(data, dict):
+            return Decimal(str(data.get("totalWalletBalance", "0")))
         return Decimal("0")
 
+    async def get_margin_ratio(self, symbol: str, is_long: bool) -> Optional[Decimal]:
+        """Return margin ratio = margin / position_size. None if no position."""
+        pos = await self.get_position(symbol)
+        if pos is None:
+            return None
+        if pos["mark_price"] == 0:
+            return None
+        notional = pos["size"] * pos["mark_price"]
+        if notional == 0:
+            return None
+        return pos["margin"] / notional
+
     # ------------------------------------------------------------------
-    # Transaction helper
+    # HTTP helpers
     # ------------------------------------------------------------------
 
-    async def _send_tx(self, contract_fn: Any) -> dict:
-        """Build, sign, and broadcast a transaction. Returns the receipt."""
-        loop = asyncio.get_event_loop()
-        nonce = await loop.run_in_executor(
-            None,
-            lambda: self._w3.eth.get_transaction_count(self._wallet, "pending"),
-        )
-        gas_price = self._w3.eth.gas_price
+    def _sign(self, query_string: str) -> str:
+        return hmac.new(
+            self._api_secret.encode("utf-8"),
+            query_string.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
 
-        tx = contract_fn.build_transaction({
-            "from": self._wallet,
-            "nonce": nonce,
-            "gasPrice": gas_price,
-        })
+    async def _get(
+        self,
+        path: str,
+        params: Optional[dict] = None,
+        signed: bool = False,
+    ) -> any:
+        params = dict(params or {})
+        if signed:
+            params["timestamp"] = int(time.time() * 1000)
+            qs = "&".join(f"{k}={v}" for k, v in sorted(params.items()))
+            params["signature"] = self._sign(qs)
 
-        # Estimate gas
-        try:
-            gas_est = await loop.run_in_executor(None, lambda: self._w3.eth.estimate_gas(tx))
-            tx["gas"] = int(gas_est * 1.2)  # 20% buffer
-        except Exception:
-            tx["gas"] = 500_000
+        headers = {}
+        if self._api_key:
+            headers["X-MBX-APIKEY"] = self._api_key
 
-        signed = self._account.sign_transaction(tx)
-        tx_hash = await loop.run_in_executor(
-            None, lambda: self._w3.eth.send_raw_transaction(signed.rawTransaction)
-        )
-        log.info("aster_tx_sent", tx_hash=tx_hash.hex())
+        async with self._session.get(
+            f"{self._api_url}{path}",
+            params=params,
+            headers=headers,
+        ) as resp:
+            data = await resp.json()
+            if resp.status != 200:
+                log.warning("aster_api_error", path=path, status=resp.status, data=data)
+            return data
 
-        receipt = await loop.run_in_executor(
-            None, lambda: self._w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
-        )
-        if receipt["status"] != 1:
-            raise RuntimeError(f"Aster transaction reverted: {tx_hash.hex()}")
-        log.info("aster_tx_confirmed", tx_hash=tx_hash.hex(), block=receipt["blockNumber"])
-        return receipt
+    async def _post(self, path: str, params: dict) -> dict:
+        params = dict(params)
+        params["timestamp"] = int(time.time() * 1000)
+        qs = "&".join(f"{k}={v}" for k, v in sorted(params.items()))
+        params["signature"] = self._sign(qs)
+
+        headers = {"X-MBX-APIKEY": self._api_key}
+
+        async with self._session.post(
+            f"{self._api_url}{path}",
+            data=params,
+            headers=headers,
+        ) as resp:
+            data = await resp.json()
+            if resp.status not in (200, 201):
+                raise RuntimeError(f"Aster POST {path} failed ({resp.status}): {data}")
+            return data
 
     # ------------------------------------------------------------------
     # Accessors
     # ------------------------------------------------------------------
-
-    def get_size_params(self, symbol: str) -> Optional[ExchangeSizeParams]:
-        return self._size_params.get(symbol.upper())
 
     def get_funding_rate(self, symbol: str) -> Optional[Decimal]:
         return self.funding_rates.get(symbol.upper())
@@ -504,9 +368,13 @@ class AsterClient:
     def get_mid_price(self, symbol: str) -> Optional[Decimal]:
         return self.mid_prices.get(symbol.upper())
 
+    def get_next_funding_time(self, symbol: str) -> Optional[int]:
+        """Returns the next settlement timestamp in milliseconds UTC."""
+        return self.next_funding_times.get(symbol.upper())
+
+    def get_size_params(self, symbol: str) -> Optional[ExchangeSizeParams]:
+        return self._size_params.get(symbol.upper())
+
     def gas_ok_for_open(self) -> bool:
-        try:
-            self._check_gas(self.max_gas_open)
-            return True
-        except GasLimitExceededError:
-            return False
+        # Aster uses REST API — no gas considerations.
+        return True
