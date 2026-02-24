@@ -1,6 +1,13 @@
 # Logs
 logs
 *.log
+
+# Arbitrage bot secrets — NEVER commit these
+arbitrage_bot/.env
+arbitrage_bot/logs/
+arbitrage_bot/__pycache__/
+arbitrage_bot/utils/__pycache__/
+arbitrage_bot/*.pyc
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

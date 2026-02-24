@@ -1,0 +1,106 @@
+# ============================================================
+# Hyperliquid <> Aster Cross-Exchange Funding Rate Arbitrage
+# Configuration File — 2026 Edition
+# ============================================================
+#
+# SECURITY: Never commit real private keys. Use the key_encryptor.py
+# utility to encrypt your keys. Store the Fernet password in an
+# environment variable: export ARB_KEY_PASSWORD="your_password"
+# ============================================================
+
+hyperliquid:
+  api_url: "https://api.hyperliquid.xyz"
+  ws_url: "wss://api.hyperliquid.xyz/ws"
+  # Run: python utils/key_encryptor.py to generate this value
+  private_key_encrypted: ""
+  # Wallet address (public, not sensitive)
+  wallet_address: "0xYOUR_HL_WALLET_ADDRESS"
+
+aster:
+  # BNB Chain mainnet — change if Aster deploys to another L2
+  rpc_url: "https://bsc-dataseed1.binance.org/"
+  rpc_url_backup: "https://bsc-dataseed2.binance.org/"
+  ws_rpc_url: "wss://bsc-ws-node.nariox.org:443"
+  # Aster Perpetuals Router contract address on BNB Chain
+  router_contract: "0xYOUR_ASTER_ROUTER_CONTRACT"
+  vault_contract: "0xYOUR_ASTER_VAULT_CONTRACT"
+  price_feed_contract: "0xYOUR_ASTER_PRICE_FEED"
+  private_key_encrypted: ""
+  wallet_address: "0xYOUR_ASTER_WALLET_ADDRESS"
+  # Supported margin assets — asBNB / USDF are yield-bearing
+  margin_asset: "USDF"          # options: USDF, asBNB, USDC
+  margin_asset_address: "0xYOUR_USDF_CONTRACT"
+  # Base APY of the margin asset itself (sourced from protocol)
+  # Script will auto-fetch if set to -1
+  margin_asset_base_apy: -1
+
+trading:
+  # Total deployable capital in USDC equivalent
+  total_capital_usdc: 166
+  # Fraction allocated to each side (0.5 = 50/50 split)
+  capital_split_hl: 0.50
+  capital_split_aster: 0.50
+  # Leverage on each side (3x recommended for 166u to survive fee drag)
+  leverage: 3
+  # === Fee Thresholds ===
+  # Minimum annualised spread AFTER all fees to open a position.
+  # Formula: Spread > (0.00045*2 + 0.0004*2) * leverage + gas_buffer
+  # At 3x leverage this is roughly 0.00510 (0.51%) per funding period.
+  min_spread_to_open: 0.0055      # 0.55% per 8-hour period
+  # Close when spread drops below this fraction of open-spread
+  spread_close_ratio: 0.30
+  # Funding interval in hours (HL = 1h, Aster = 8h — bot uses min interval)
+  hl_funding_interval_hours: 1
+  aster_funding_interval_hours: 8
+  # Maker order timeout before converting to aggressive limit (seconds)
+  maker_timeout_seconds: 5
+  # Price slippage buffer for aggressive limit fallback (basis points)
+  aggressive_slippage_bps: 5
+  # Maximum number of simultaneous open arb pairs
+  max_open_positions: 2
+
+risk:
+  # Margin ratio below which we force-close the position (fraction, 0–1)
+  min_margin_ratio: 0.20
+  # Maximum time to hold a position before force-closing (hours)
+  max_position_age_hours: 48
+  # Maximum acceptable gas price to execute Aster trades (Gwei)
+  max_gas_gwei: 30
+  # Maximum acceptable gas price to OPEN new positions (be conservative)
+  max_gas_gwei_open: 20
+  # If True, script pauses all new entries when gas is high
+  pause_on_high_gas: true
+  # Maximum total drawdown before shutting down (fraction of capital)
+  max_drawdown_fraction: 0.10
+
+fees:
+  # Hyperliquid fee tiers (fractions, not %)
+  hl_maker_fee: 0.00020     # 0.020%
+  hl_taker_fee: 0.00045     # 0.045%
+  # Aster fee tiers
+  aster_maker_fee: 0.00030  # 0.030%
+  aster_taker_fee: 0.00040  # 0.040%
+  # Estimated gas cost per Aster transaction in USDC equivalent
+  aster_gas_cost_usdc: 0.15
+  # Buffer added on top of calculated fees for slippage/rounding
+  fee_safety_buffer: 0.0002
+
+# Symbols to never trade (high spread manipulation risk, low liquidity, etc.)
+blacklist_symbols:
+  - "DOGE"
+  - "SHIB"
+  - "PEPE"
+  - "FLOKI"
+  - "BONK"
+  - "WIF"
+
+# Whitelist — if non-empty, ONLY these symbols are considered
+whitelist_symbols: []
+
+logging:
+  level: "INFO"         # DEBUG | INFO | WARNING | ERROR
+  log_file: "logs/arb_bot.log"
+  max_bytes: 10485760   # 10 MB
+  backup_count: 5
+  # Set to true to also print structured JSON logs (good for log aggregators)
+  json_logs: false
