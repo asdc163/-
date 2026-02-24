@@ -7,30 +7,28 @@
 
 用法範例：
 
-  # AWS - 開一台 Pro 方案給 user123
-  python provision_cloud.py \\
-      --provider aws \\
-      --plan pro \\
-      --user-id user123 \\
-      --ai-provider openai \\
-      --ai-api-key sk-xxx \\
-      --platform telegram \\
-      --contact @username
+  # 顯示所有方案比較表
+  python provision_cloud.py --plans
 
-  # GCP - 開一台 Basic 方案
-  python provision_cloud.py \\
-      --provider gcp \\
-      --plan basic \\
-      --user-id user456 \\
-      --ai-provider gemini \\
-      --ai-api-key AIza... \\
-      --platform line \\
-      --contact +886912345678
+  # 開通 Starter 方案（最省）
+  python provision_cloud.py --plan starter --user-id ORDER_001 \\
+      --ai-provider openai --ai-api-key sk-xxx \\
+      --platform telegram --contact @username
 
-  # 列出目前所有在線實例
+  # 開通 Pro 方案（重度用戶首選）
+  python provision_cloud.py --plan pro --user-id ORDER_002 \\
+      --ai-provider openai --ai-api-key sk-xxx \\
+      --platform telegram --contact @username
+
+  # 開通 Enterprise 方案（旗艦）
+  python provision_cloud.py --plan enterprise --user-id ORDER_003 \\
+      --ai-provider gemini --ai-api-key AIza... \\
+      --platform line --contact +886912345678
+
+  # 列出所有在線實例（含費用參考）
   python provision_cloud.py --list --provider aws
 
-  # 終止指定實例
+  # 停機指定實例（用戶不續約時使用）
   python provision_cloud.py --terminate i-0abc123 --provider aws
 """
 
@@ -45,7 +43,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
-from config.plans import get_plan
+from config.plans import get_plan, print_plans_table, PLANS
 
 # ──────────────────────────────────────────────────────────────
 # 日誌設定
@@ -128,25 +126,32 @@ def cmd_provision(args) -> None:
     plan = get_plan(args.plan)
     login_token = secrets.token_urlsafe(32)
 
+    if args.provider == "aws":
+        spec_info = f"{plan.aws_instance_type} ({plan.aws_vcpu}vCPU {plan.aws_ram_gb}GB RAM)"
+    else:
+        spec_info = f"{plan.gcp_machine_type} ({plan.aws_vcpu}vCPU {plan.aws_ram_gb}GB RAM)"
+
     print(f"""
-┌─────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────┐
 │  龍蝦雲 開通請求
-│  用戶 ID : {args.user_id}
-│  方案    : {plan.name} (${plan.price_usd})
-│  說明    : {plan.description}
-│  雲端    : {args.provider.upper()}
-│  AI 平台 : {args.ai_provider} / {args.contact}
-└─────────────────────────────────────────────┘
+│  用戶 ID   : {args.user_id}
+│  方案      : {plan.name}  (售價 ${plan.price_usd}/月)
+│  說明      : {plan.description}
+│  適用情境  : {plan.use_case}
+│  雲端      : {args.provider.upper()}  ─  {spec_info}
+│  硬碟      : {plan.disk_gb} GB SSD
+│  同時對話  : {plan.concurrent_display}  ｜  通訊平台: {plan.platforms_display}
+│  每日備份  : {"是" if plan.daily_backup else "否"}  ｜  優先支援: {"是" if plan.priority_support else "否"}
+│  AI 平台   : {args.ai_provider.upper()}  ─  {args.platform.upper()} / {args.contact}
+│  AWS 成本  : ~${plan.aws_cost_est}/月  ｜  毛利率: {plan.margin_pct}%  (+${plan.monthly_profit})
+└──────────────────────────────────────────────────┘
 """)
 
     # 1. 渲染 cloud-init 腳本
     logger.info("渲染 Cloud-Init 腳本...")
     provider_name = args.provider
-    if provider_name == "aws":
-        spec_desc = plan.aws_instance_type
-    else:
-        spec_desc = plan.gcp_machine_type
-    logger.info(f"規格: {spec_desc} | 硬碟: {plan.disk_gb}GB")
+    spec_desc = plan.aws_instance_type if provider_name == "aws" else plan.gcp_machine_type
+    logger.info(f"規格: {spec_desc} | 硬碟: {plan.disk_gb}GB | 上下文: {plan.openclaw_max_tokens // 1024}K tokens")
 
     cloud_init_script = render_cloud_init(
         user_id=args.user_id,
@@ -183,6 +188,8 @@ def cmd_provision(args) -> None:
     delivery = {
         "user_id": args.user_id,
         "plan": plan.name,
+        "plan_id": plan.plan_id,
+        "price_usd": plan.price_usd,
         "provider": result["provider"],
         "public_ip": result["public_ip"],
         "instance_id": result["instance_id"],
@@ -190,6 +197,9 @@ def cmd_provision(args) -> None:
         "login_token": login_token,
         "platform": args.platform,
         "contact": args.contact,
+        "daily_backup": plan.daily_backup,
+        "priority_support": plan.priority_support,
+        "provisioned_at": datetime.now(timezone.utc).isoformat(),
         "note": "伺服器約需 60 秒完成 OpenClaw 安裝，請稍待後再連線",
     }
 
@@ -272,8 +282,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     # 開通方案
     provision_group = parser.add_argument_group("開通方案")
-    provision_group.add_argument("--plan", choices=["basic", "pro", "enterprise"],
-                                 help="方案等級")
+    provision_group.add_argument(
+        "--plan",
+        choices=["starter", "basic", "pro", "business", "enterprise"],
+        help="方案等級 (starter/basic/pro/business/enterprise)"
+    )
     provision_group.add_argument("--user-id", help="用戶唯一識別碼（訂單號/UID）")
     provision_group.add_argument("--ai-provider", choices=["openai", "gemini"],
                                  help="AI 平台")
@@ -285,8 +298,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     # 管理
     mgmt_group = parser.add_argument_group("實例管理")
-    mgmt_group.add_argument("--list", action="store_true", help="列出所有管理中的實例")
-    mgmt_group.add_argument("--terminate", metavar="INSTANCE_ID", help="終止指定實例")
+    mgmt_group.add_argument("--list", action="store_true", help="列出所有運行中的實例")
+    mgmt_group.add_argument("--terminate", metavar="INSTANCE_ID", help="終止（停機）指定實例")
+    mgmt_group.add_argument("--plans", action="store_true", help="顯示所有方案比較表")
 
     return parser
 
@@ -298,7 +312,10 @@ def main():
     parser = build_parser()
     args = parser.parse_args()
 
-    if args.list:
+    if args.plans:
+        print_plans_table()
+        return
+    elif args.list:
         cmd_list(args)
     elif args.terminate:
         cmd_terminate(args)
