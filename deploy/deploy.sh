@@ -122,13 +122,12 @@ gcloud compute ssh "$VM_NAME" --zone="$ZONE" --tunnel-through-iap -- \
 # ---- Set up systemd service -------------------------------------------------
 log "Configuring systemd service..."
 
-# Prompt for password securely — this is the ARB_KEY_PASSWORD
+# Prompt for password securely — this is the ARB_KEY_PASSWORD set during encryption
 echo ""
 echo "The bot needs the ARB_KEY_PASSWORD to decrypt credentials in config.yaml."
-echo "This is the password: Arb\$ecure2026!xHL"
-echo "(You set this when encrypting your credentials.)"
+echo "(This is the password you chose when running key_encryptor.py)"
 echo ""
-read -rsp "Confirm ARB_KEY_PASSWORD: " BOT_PASSWORD
+read -rsp "Enter ARB_KEY_PASSWORD: " BOT_PASSWORD
 echo ""
 
 # Write environment file on the VM (permissions: root only)
