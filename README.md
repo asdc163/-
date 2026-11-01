@@ -1,20 +1,14 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Glimmer · 個人安全守護原型
 
-# Run and deploy your AI Studio app
+React 介面原型，串起角色選擇、安全回報、緊急聯絡人、守護者地圖與 SOS 畫面。
 
-This contains everything you need to run your app locally.
+`App.tsx` 使用前端路由與本機狀態組合流程，`views/` 保留各個畫面。這份作品展示操作與資訊架構；實際求救通知、背景定位、緊急事件送達與服務可靠性尚未建立驗證。
 
-View your app in AI Studio: https://ai.studio/apps/drive/1Qsbozoku8UEtoKWgiOfTAo4e8QFHThRD
+## Run locally
 
-## Run Locally
+```bash
+npm install
+npm run dev
+```
 
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Build with `npm run build`. These commands follow `package.json`; no new runtime validation was performed for this README update.
